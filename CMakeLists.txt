@@ -14,13 +14,13 @@ include(CMakePackageConfigHelpers)
 
 # Compiler
 if(MSVC)
-  set(QC_MSVC TRUE)
+    set(QC_MSVC TRUE)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
-  set(QC_CLANG TRUE)
+    set(QC_CLANG TRUE)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  set(QC_GCC TRUE)
+    set(QC_GCC TRUE)
 else()
-  message(WARNING "Compiler not recognized")
+    message(WARNING "Compiler not recognized")
 endif()
 
 ### WARNINGS ###################################################################
@@ -31,10 +31,10 @@ set(QC_WARNINGS_MSVC
     /w14254 # 'operator': conversion from 'type1:field_bits' to 'type2:field_bits', possible loss of data
     /w14263 # 'function': member function does not override any base class virtual member function
     /w14265 # 'classname': class has virtual functions, but destructor is not virtual instances of this class may not
-            # be destructed correctly
+    # be destructed correctly
     /w14287 # 'operator': unsigned/negative constant mismatch
     /we4289 # nonstandard extension used: 'variable': loop control variable declared in the for-loop is used outside
-            # the for-loop scope
+    # the for-loop scope
     /w14296 # 'operator': expression is always 'boolean_value'
     /w14311 # 'variable': pointer truncation from 'type1' to 'type2'
     /w14545 # expression before comma evaluates to a function which is missing an argument list
@@ -56,7 +56,7 @@ set(QC_WARNINGS_CLANG
     -Wextra # reasonable and standard
     -Wshadow # warn the user if a variable declaration shadows one from a parent context
     -Wnon-virtual-dtor # warn the user if a class with virtual functions has a non-virtual destructor. This helps
-                       # catch hard to track down memory errors
+    # catch hard to track down memory errors
     -Wold-style-cast # warn for c-style casts
     -Wcast-align # warn for potential performance problem casts
     -Wunused # warn on anything being unused
@@ -84,14 +84,14 @@ set(QC_WARNINGS_ERROR_CLANG ${QC_WARNINGS_CLANG} -Werror)
 set(QC_WARNINGS_ERROR_GCC ${QC_WARNINGS_GCC} -Werror)
 
 if(QC_MSVC)
-  set(QC_WARNINGS ${QC_WARNINGS_MSVC})
-  set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_MSVC})
+    set(QC_WARNINGS ${QC_WARNINGS_MSVC})
+    set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_MSVC})
 elseif(QC_CLANG)
-  set(QC_WARNINGS ${QC_WARNINGS_CLANG})
-  set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_CLANG})
+    set(QC_WARNINGS ${QC_WARNINGS_CLANG})
+    set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_CLANG})
 elseif(CMAKE_GCC)
-  set(QC_WARNINGS ${QC_WARNINGS_GCC})
-  set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_GCC})
+    set(QC_WARNINGS ${QC_WARNINGS_GCC})
+    set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_GCC})
 endif()
 
 ### INSTALL ####################################################################
@@ -99,38 +99,38 @@ endif()
 # See https://cmake.org/cmake/help/git-stage/guide/importing-exporting/index.html
 
 function(qc_install)
-  # General install and target setup
-  install(
-      TARGETS ${PROJECT_NAME}
-      EXPORT ${PROJECT_NAME}-targets
-      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-      INCLUDES DESTINATION include
-  )
+    # General install and target setup
+    install(
+        TARGETS ${PROJECT_NAME}
+        EXPORT ${PROJECT_NAME}-targets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION include
+    )
 
-  # Install headers
-  install(DIRECTORY include DESTINATION .)
+    # Install headers
+    install(DIRECTORY include DESTINATION .)
 
-  # Export targets to create importable cmake file
-  install(
-      EXPORT ${PROJECT_NAME}-targets
-      NAMESPACE ${CMAKE_PROJECT_NAME}::
-      DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
-  )
+    # Export targets to create importable cmake file
+    install(
+        EXPORT ${PROJECT_NAME}-targets
+        NAMESPACE ${CMAKE_PROJECT_NAME}::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+    )
 
-  # Allow library to be found via find_package
+    # Allow library to be found via find_package
 
-  # Create config.cmake files
-  configure_package_config_file(
-      ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
-      ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
-      INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
-  )
+    # Create config.cmake files
+    configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+    )
 
-  # Install config.cmake files
-  install(
-      FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
-      DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
-  )
+    # Install config.cmake files
+    install(
+        FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+    )
 endfunction()
