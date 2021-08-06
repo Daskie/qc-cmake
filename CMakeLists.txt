@@ -1,12 +1,13 @@
-cmake_minimum_required(VERSION 3.17)
-project(qc_cmake)
-
 #
-# Variables and functions to support common CMake operations.
+# Variable and functions for common CMake use.
 #
 # Austin Quick
-# https://gist.github.com/Daskie/293d850ad5bba6bcc60c7afdab8f0f8e
+# https://github.com/Daskie/qc-cmake
 #
+
+cmake_minimum_required(VERSION 3.17)
+
+project(qc-cmake)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -124,7 +125,7 @@ function(qc_install)
 
   # Create config.cmake files
   configure_package_config_file(
-      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in
+      ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
       ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
       INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
   )
@@ -135,4 +136,3 @@ function(qc_install)
       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
   )
 endfunction()
-
