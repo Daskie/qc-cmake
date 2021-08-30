@@ -91,6 +91,10 @@ elseif(CMAKE_GCC)
     set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_GCC})
 endif()
 
+# Allow warnings to be accessed from parent scope
+set(QC_WARNINGS ${QC_WARNINGS} PARENT_SCOPE)
+set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR} PARENT_SCOPE)
+
 ### INSTALL ####################################################################
 
 # See https://cmake.org/cmake/help/git-stage/guide/importing-exporting/index.html
