@@ -14,7 +14,7 @@ include(CMakePackageConfigHelpers)
 ### GENERAL ####################################################################
 
 # Build type
-if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(QC_DEBUG TRUE)
     set(QC_RELEASE FALSE)
 else()
