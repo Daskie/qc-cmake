@@ -99,7 +99,33 @@ set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR} PARENT_SCOPE)
 
 # See https://cmake.org/cmake/help/git-stage/guide/importing-exporting/index.html
 
+function(_generate_config_template_file)
+    set(template "@PACKAGE_INIT@\n")
+
+    if(DEFINED _DEPENDENCIES)
+        string(APPEND template "\n# Dependencies\n")
+        string(APPEND template "include(CMakeFindDependencyMacro)\n")
+        foreach(dependency ${_DEPENDENCIES})
+            string(APPEND template "find_dependency(${dependency})\n")
+        endforeach()
+    endif()
+
+    string(APPEND template "\ninclude(\"\${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake\")\n")
+    string(APPEND template "check_required_components(@PROJECT_NAME@)\n")
+
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake.in ${template})
+endfunction()
+
+#
+# qc_install([DEPENDENCIES <packages>...])
+#
 function(qc_install)
+    cmake_parse_arguments(PARSE_ARGV 0 "" "" "" "DEPENDENCIES")
+
+    if(DEFINED _UNPARSED_ARGUMENTS OR DEFINED _KEYWORDS_MISSING_VALUES)
+        message(FATAL_ERROR "Invalid arguments")
+    endif()
+
     # General install and target setup
     install(
         TARGETS ${PROJECT_NAME}
@@ -122,9 +148,12 @@ function(qc_install)
 
     # Allow library to be found via find_package
 
+    # Generate config template
+    _generate_config_template_file()
+
     # Create config.cmake files
     configure_package_config_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
         INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
     )
