@@ -5,6 +5,7 @@
 # https://github.com/Daskie/qc-cmake
 #
 
+# TODO: Determine actual minimum version
 cmake_minimum_required(VERSION 3.17)
 
 include(GNUInstallDirs)
@@ -15,10 +16,13 @@ include(CMakePackageConfigHelpers)
 # Compiler
 if(MSVC)
     set(QC_MSVC TRUE)
+    set(QC_MSVC ${QC_MSVC} PARENT_SCOPE)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
     set(QC_CLANG TRUE)
+    set(QC_CLANG ${QC_CLANG} PARENT_SCOPE)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(QC_GCC TRUE)
+    set(QC_GCC ${QC_GCC} PARENT_SCOPE)
 else()
     message(WARNING "Compiler not recognized")
 endif()
