@@ -13,6 +13,17 @@ include(CMakePackageConfigHelpers)
 
 ### GENERAL ####################################################################
 
+# Build type
+if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(QC_DEBUG TRUE)
+    set(QC_RELEASE FALSE)
+else()
+    set(QC_DEBUG FALSE)
+    set(QC_RELEASE TRUE)
+endif()
+set(QC_DEBUG ${QC_DEBUG} PARENT_SCOPE)
+set(QC_RELEASE ${QC_RELEASE} PARENT_SCOPE)
+
 # Compiler
 if(MSVC)
     set(QC_MSVC TRUE)
