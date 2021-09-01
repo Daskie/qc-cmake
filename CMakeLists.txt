@@ -8,8 +8,10 @@
 # TODO: Determine actual minimum version
 cmake_minimum_required(VERSION 3.17)
 
-include(GNUInstallDirs)
+# The CheckIPOSupported module seems to be broken and causes linking errors
+#include(CheckIPOSupported)
 include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
 ### GENERAL ####################################################################
 
@@ -110,72 +112,274 @@ endif()
 set(QC_WARNINGS ${QC_WARNINGS} PARENT_SCOPE)
 set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR} PARENT_SCOPE)
 
-### INSTALL ####################################################################
-
-# See https://cmake.org/cmake/help/git-stage/guide/importing-exporting/index.html
-
-function(_generate_config_template_file)
-    set(template "@PACKAGE_INIT@\n")
-
-    if(DEFINED _DEPENDENCIES)
-        string(APPEND template "\n# Dependencies\n")
-        string(APPEND template "include(CMakeFindDependencyMacro)\n")
-        foreach(dependency ${_DEPENDENCIES})
-            string(APPEND template "find_dependency(${dependency})\n")
-        endforeach()
-    endif()
-
-    string(APPEND template "\ninclude(\"\${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake\")\n")
-    string(APPEND template "check_required_components(@PROJECT_NAME@)\n")
-
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake.in ${template})
-endfunction()
+### FUNCTIONS ##################################################################
 
 #
-# qc_install([DEPENDENCIES <packages>...])
+# Check `cmake_parse_arguments` results
 #
-function(qc_install)
-    cmake_parse_arguments(PARSE_ARGV 0 "" "" "" "DEPENDENCIES")
-
+# qc_check_args()
+#
+macro(qc_check_args)
     if(DEFINED _UNPARSED_ARGUMENTS OR DEFINED _KEYWORDS_MISSING_VALUES)
         message(FATAL_ERROR "Invalid arguments")
     endif()
+endmacro()
 
-    # General install and target setup
-    install(
-        TARGETS ${PROJECT_NAME}
-        EXPORT ${PROJECT_NAME}-targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        INCLUDES DESTINATION include
+#
+# Sets up certain global setting/variables/optimizations. Should be called once at the top of the project.
+#
+# qc_setup_general([NO_LINK_TIME_OPTIMIZATION])
+#
+function(qc_setup_general)
+    cmake_parse_arguments(
+        PARSE_ARGV
+        0
+        ""
+        "NO_LINK_TIME_OPTIMIZATION"
+        ""
+        ""
     )
+    qc_check_args()
 
-    # Install headers
-    install(DIRECTORY include DESTINATION .)
+    # Append `-d` to generated debug libs so they don't collide with release libs
+   set(CMAKE_DEBUG_POSTFIX -d)
 
-    # Export targets to create importable cmake file
-    install(
-        EXPORT ${PROJECT_NAME}-targets
-        NAMESPACE ${CMAKE_PROJECT_NAME}::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+    # Enable link-time optimization
+    if(QC_RELEASE AND NOT _NO_LINK_TIME_OPTIMIZATION)
+        # The CheckIPOSupported module seems to be broken and causes linking errors
+        #check_ipo_supported()
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE PARENT_SCOPE)
+    endif()
+endfunction()
+
+#
+# Sets up a library or executable.
+#
+# qc_setup_target(
+#     <target>
+#     LIBRARY
+#     {STATIC|SHARED}
+#     [SOURCE_FILES <source-file-pattern>...]
+#     [PUBLIC_LINKS <target-or-library>....]
+#     [PRIVATE_LINKS <target-or-library>....]
+#     [WARNINGS_DONT_ERROR]
+#     [INSTALLABLE]
+#         [INSTALL_DEPENDENCIES <package>...]
+#         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
+# )
+#
+# qc_setup_target(
+#     <target>
+#     LIBRARY
+#     INTERFACE
+#     [INTERFACE_LINKS <target-or-library>....]
+#     [INSTALLABLE]
+#         [INSTALL_DEPENDENCIES <package>...]
+#         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
+# )
+#
+# qc_setup_target(
+#     <target>
+#     EXECUTABLE
+#     SOURCE_FILES <source-file-pattern>...
+#     [PUBLIC_LINKS <target-or-library>....]
+#     [PRIVATE_LINKS <target-or-library>....]
+#     [WARNINGS_DONT_ERROR]
+#     [INSTALLABLE]
+#         [INSTALL_DEPENDENCIES <package>...]
+#         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
+# )
+#
+function(qc_setup_target)
+    if(ARGC LESS 1)
+        message(FATAL_ERROR "Missing target")
+    endif()
+
+    set(target ${ARGV0})
+
+    cmake_parse_arguments(
+        PARSE_ARGV
+        1
+        ""
+        "LIBRARY;EXECUTABLE;STATIC;SHARED;INTERFACE;WARNINGS_DONT_ERROR;INSTALLABLE;WINDOWS_SUB_PROJECT_INSTALL_PREFIX"
+        ""
+        "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;INSTALL_DEPENDENCIES"
     )
+    qc_check_args()
 
-    # Allow library to be found via find_package
+    # Ensure either library or executable
+    if(_LIBRARY STREQUAL _EXECUTABLE)
+        message(FATAL_ERROR "Must provide either `LIBRARY` or `EXECUTABLE`")
+    endif()
 
-    # Generate config template
-    _generate_config_template_file()
+    # Set library type
+    unset(library_type)
+    if(_STATIC)
+        list(APPEND library_type "STATIC")
+    endif()
+    if(_SHARED)
+        list(APPEND library_type "SHARED")
+    endif()
+    if(_INTERFACE)
+        list(APPEND library_type "INTERFACE")
+    endif()
 
-    # Create config.cmake files
-    configure_package_config_file(
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
-    )
+    # Verify library type
+    list(LENGTH library_type library_type_count)
+    if(_LIBRARY)
+        if(NOT library_type_count EQUAL 1)
+            message(FATAL_ERROR "Library must be specified as one of `STATIC`, `SHARED`, or `INTERFACE`")
+        endif()
+    else()
+        if(NOT library_type_count EQUAL 0)
+            message(FATAL_ERROR "Executable must not specify a library type")
+        endif()
+    endif()
 
-    # Install config.cmake files
-    install(
-        FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
-    )
+    # Verify links
+    if(DEFINED _INTERFACE_LINKS AND NOT library_type STREQUAL "INTERFACE")
+        message(FATAL_ERROR "Executable must not have interface links")
+    endif()
+
+    # Verify `WARNINGS_DONT_ERROR`
+    if(library_type STREQUAL "INTERFACE" AND _WARNINGS_DONT_ERROR)
+        message(WARNING "`WARNINGS_DONT_ERROR` specified for interface library")
+    endif()
+
+    # Validate install arguments
+    if(_INSTALL_DEPENDENCIES AND NOT _INSTALLABLE)
+        message(WARNING "Install dependencies specified for uninstallable target")
+    endif()
+    if(_WINDOWS_SUB_PROJECT_INSTALL_PREFIX AND NOT _INSTALLABLE)
+        message(WARNING "`WINDOWS_SUB_PROJECT_INSTALL_PREFIX` specified for uninstallable target")
+    endif()
+
+    # List out individual source files
+    unset(source_files)
+    if(DEFINED _SOURCE_FILES)
+        file(GLOB_RECURSE source_files LIST_DIRECTORIES false ${_SOURCE_FILES})
+    endif()
+    list(LENGTH source_files source_file_count)
+
+    # Validate source files
+    if(library_type STREQUAL "INTERFACE")
+        if(source_file_count GREATER 0)
+            message(FATAL_ERROR "Source files specified for interface library")
+        endif()
+    else()
+        if(source_file_count EQUAL 0)
+            message(FATAL_ERROR "No source files specified")
+        endif()
+    endif()
+
+    # Add library or executable
+    if(_LIBRARY)
+        add_library(${target} ${library_type} ${source_files})
+    else()
+        add_executable(${target} ${source_files})
+    endif()
+
+    # Set install prefix
+    # For some reason using `.` in the normal case breaks things, so we use an empty string and adjust accordingly
+    if(_INSTALLABLE AND _WINDOWS_SUB_PROJECT_INSTALL_PREFIX AND WIN32)
+        set(install_prefix ${target}/)
+        set(install_prefix_alone ${target})
+    else()
+        unset(install_prefix)
+        set(install_prefix_alone ".")
+    endif()
+
+    # Set include directory
+    if(_LIBRARY)
+        if (library_type STREQUAL "INTERFACE")
+            set(public_or_interface "INTERFACE")
+        else()
+            set(public_or_interface "PUBLIC")
+        endif()
+
+        target_include_directories(
+            ${target}
+            ${public_or_interface}
+                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                $<INSTALL_INTERFACE:${install_prefix}include>
+        )
+    endif()
+
+    # Add additional `external` include directory
+    if(NOT library_type STREQUAL "INTERFACE")
+        target_include_directories(${target} PRIVATE external)
+    endif()
+
+    # Links
+    if(DEFINED _PUBLIC_LINKS)
+        target_link_libraries(${target} PUBLIC ${_PUBLIC_LINKS})
+    endif()
+    if(DEFINED _PRIVATE_LINKS)
+        target_link_libraries(${target} PRIVATE ${_PRIVATE_LINKS})
+    endif()
+    if(DEFINED _INTERFACE_LINKS)
+        target_link_libraries(${target} INTERFACE ${_INTERFACE_LINKS})
+    endif()
+
+    # Set warnings
+    if(NOT library_type STREQUAL "INTERFACE")
+        if(_WARNINGS_DONT_ERROR)
+            target_compile_options(${target} PRIVATE ${QC_WARNINGS})
+        else()
+            target_compile_options(${target} PRIVATE ${QC_WARNINGS_ERROR})
+        endif()
+    endif()
+
+    # Installation stuff
+    # See https://cmake.org/cmake/help/git-stage/guide/importing-exporting/index.html
+    if(_INSTALLABLE)
+        # General install and target setup
+        install(
+            TARGETS ${target}
+            EXPORT ${target}-targets
+            LIBRARY DESTINATION ${install_prefix}${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${install_prefix}${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${install_prefix}${CMAKE_INSTALL_BINDIR}
+            INCLUDES DESTINATION ${install_prefix}include
+        )
+
+        # Install headers
+        install(DIRECTORY include DESTINATION ${install_prefix_alone})
+
+        # Export targets to create importable cmake file
+        # Note: namespace is the `CMAKE_PROJECT_NAME` not `PROJECT_NAME`
+        install(
+            EXPORT ${target}-targets
+            NAMESPACE ${CMAKE_PROJECT_NAME}::
+            DESTINATION ${install_prefix}${CMAKE_INSTALL_LIBDIR}/cmake/${target}
+        )
+
+        # Allow library to be found via find_package
+
+        # Generate config template
+        set(template "@PACKAGE_INIT@\n")
+        if(DEFINED _INSTALL_DEPENDENCIES)
+            string(APPEND template "\n# Dependencies\n")
+            string(APPEND template "include(CMakeFindDependencyMacro)\n")
+            foreach(dependency ${_INSTALL_DEPENDENCIES})
+                string(APPEND template "find_dependency(${dependency})\n")
+            endforeach()
+        endif()
+        string(APPEND template "\ninclude(\"\${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake\")\n")
+        string(APPEND template "check_required_components(@PROJECT_NAME@)\n")
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${target}-config.cmake.in ${template})
+
+        # Create config.cmake files
+        configure_package_config_file(
+            ${CMAKE_CURRENT_BINARY_DIR}/${target}-config.cmake.in
+            ${CMAKE_CURRENT_BINARY_DIR}/${target}-config.cmake
+            INSTALL_DESTINATION ${install_prefix}${CMAKE_INSTALL_LIBDIR}/cmake/${target}
+        )
+
+        # Install config.cmake files
+        install(
+            FILES ${CMAKE_CURRENT_BINARY_DIR}/${target}-config.cmake
+            DESTINATION ${install_prefix}${CMAKE_INSTALL_LIBDIR}/cmake/${target}
+        )
+    endif()
 endfunction()
