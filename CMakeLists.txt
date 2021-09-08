@@ -159,7 +159,6 @@ endfunction()
 #     <target>
 #     LIBRARY
 #     {STATIC|SHARED}
-#     [SOURCE_FILES <source-file-pattern>...]
 #     [PUBLIC_LINKS <target-or-library>....]
 #     [PRIVATE_LINKS <target-or-library>....]
 #     [COMPILE_OPTIONS <option>...]
@@ -182,7 +181,6 @@ endfunction()
 # qc_setup_target(
 #     <target>
 #     EXECUTABLE
-#     SOURCE_FILES <source-file-pattern>...
 #     [PUBLIC_LINKS <target-or-library>....]
 #     [PRIVATE_LINKS <target-or-library>....]
 #     [COMPILE_OPTIONS <option>...]
@@ -205,7 +203,7 @@ function(qc_setup_target)
         ""
         "LIBRARY;EXECUTABLE;STATIC;SHARED;INTERFACE;WARNINGS_DONT_ERROR;INSTALLABLE;WINDOWS_SUB_PROJECT_INSTALL_PREFIX"
         ""
-        "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS;INSTALL_DEPENDENCIES"
+        "PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS;INSTALL_DEPENDENCIES"
     )
     qc_check_args()
 
@@ -261,21 +259,22 @@ function(qc_setup_target)
         message(WARNING "`WINDOWS_SUB_PROJECT_INSTALL_PREFIX` specified for uninstallable target")
     endif()
 
-    # List out individual source files
+    # Aggregate source files
+    set(source_dir .)
     unset(source_files)
-    if(DEFINED _SOURCE_FILES)
-        file(GLOB_RECURSE source_files LIST_DIRECTORIES false ${_SOURCE_FILES})
-    endif()
-    list(LENGTH source_files source_file_count)
-
-    # Validate source files
-    if(library_type STREQUAL "INTERFACE")
-        if(source_file_count GREATER 0)
-            message(FATAL_ERROR "Source files specified for interface library")
+    if(NOT library_type STREQUAL "INTERFACE")
+        # Determine source directory
+        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/source)
+            set(source_dir source)
+        elseif(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
+            set(source_dir src)
         endif()
-    else()
+
+        file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${source_dir}/*.cpp)
+
+        list(LENGTH source_files source_file_count)
         if(source_file_count EQUAL 0)
-            message(FATAL_ERROR "No source files specified")
+            message(FATAL_ERROR "No source files found in source directory `${source_dir}`")
         endif()
     endif()
 
@@ -337,6 +336,18 @@ function(qc_setup_target)
         endif()
 
         target_compile_options(${target} PRIVATE ${warnings} ${_COMPILE_OPTIONS})
+    endif()
+
+    # Set precompiled header
+    if(NOT library_type STREQUAL "INTERFACE")
+        if(source_dir STREQUAL .)
+            set(pch_file pch.hpp)
+        else()
+            set(pch_file ${source_dir}/pch.hpp)
+        endif()
+        if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${pch_file})
+            target_precompile_headers(${target} PRIVATE ${pch_file})
+        endif()
     endif()
 
     # Installation stuff
