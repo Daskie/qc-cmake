@@ -121,7 +121,10 @@ set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR} PARENT_SCOPE)
 #
 macro(qc_check_args)
     if(DEFINED _UNPARSED_ARGUMENTS OR DEFINED _KEYWORDS_MISSING_VALUES)
-        message(FATAL_ERROR "Invalid arguments")
+        message(FATAL_ERROR "Invalid arguments `${_UNPARSED_ARGUMENTS}`")
+    endif()
+    if(DEFINED _KEYWORDS_MISSING_VALUES)
+        message(FATAL_ERROR "Arguments missing values `${_KEYWORDS_MISSING_VALUES}`")
     endif()
 endmacro()
 
@@ -159,6 +162,7 @@ endfunction()
 #     <target>
 #     LIBRARY
 #     {STATIC|SHARED}
+#     [SOURCE_FILES <file>...]
 #     [PUBLIC_LINKS <target-or-library>....]
 #     [PRIVATE_LINKS <target-or-library>....]
 #     [COMPILE_OPTIONS <option>...]
@@ -181,6 +185,7 @@ endfunction()
 # qc_setup_target(
 #     <target>
 #     EXECUTABLE
+#     [SOURCE_FILES <file>...]
 #     [PUBLIC_LINKS <target-or-library>....]
 #     [PRIVATE_LINKS <target-or-library>....]
 #     [COMPILE_OPTIONS <option>...]
@@ -203,7 +208,7 @@ function(qc_setup_target)
         ""
         "LIBRARY;EXECUTABLE;STATIC;SHARED;INTERFACE;WARNINGS_DONT_ERROR;INSTALLABLE;WINDOWS_SUB_PROJECT_INSTALL_PREFIX"
         ""
-        "PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS;INSTALL_DEPENDENCIES"
+        "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS;INSTALL_DEPENDENCIES"
     )
     qc_check_args()
 
@@ -236,6 +241,11 @@ function(qc_setup_target)
         endif()
     endif()
 
+    # Verify source files
+    if(DEFINED _SOURCE_FILES AND library_type STREQUAL "INTERFACE")
+        message(FATAL_ERROR "Interface library must not have source files")
+    endif()
+
     # Verify links
     if(DEFINED _INTERFACE_LINKS AND NOT library_type STREQUAL "INTERFACE")
         message(FATAL_ERROR "Executable must not have interface links")
@@ -259,22 +269,23 @@ function(qc_setup_target)
         message(WARNING "`WINDOWS_SUB_PROJECT_INSTALL_PREFIX` specified for uninstallable target")
     endif()
 
-    # Aggregate source files
-    set(source_dir .)
-    unset(source_files)
-    if(NOT library_type STREQUAL "INTERFACE")
+    # Find source files if not provided
+    set(source_files ${_SOURCE_FILES})
+    if(NOT DEFINED _SOURCE_FILES)
         # Determine source directory
         if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/source)
-            set(source_dir source)
+            set(source_pattern source/*.cpp)
         elseif(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
-            set(source_dir src)
+            set(source_pattern src/*.cpp)
+        else()
+            set(source_pattern *.cpp)
         endif()
 
-        file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${source_dir}/*.cpp)
+        file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${source_pattern})
 
         list(LENGTH source_files source_file_count)
         if(source_file_count EQUAL 0)
-            message(FATAL_ERROR "No source files found in source directory `${source_dir}`")
+            message(FATAL_ERROR "No source files found with pattern `${source_pattern}`")
         endif()
     endif()
 
@@ -340,13 +351,12 @@ function(qc_setup_target)
 
     # Set precompiled header
     if(NOT library_type STREQUAL "INTERFACE")
-        if(source_dir STREQUAL .)
-            set(pch_file pch.hpp)
-        else()
-            set(pch_file ${source_dir}/pch.hpp)
-        endif()
-        if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${pch_file})
-            target_precompile_headers(${target} PRIVATE ${pch_file})
+        if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/source/pch.hpp)
+            target_precompile_headers(${target} PRIVATE source/pch.hpp)
+        elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
+            target_precompile_headers(${target} PRIVATE src/pch.hpp)
+        elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp)
+            target_precompile_headers(${target} PRIVATE pch.hpp)
         endif()
     endif()
 
