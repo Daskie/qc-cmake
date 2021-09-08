@@ -162,6 +162,7 @@ endfunction()
 #     [SOURCE_FILES <source-file-pattern>...]
 #     [PUBLIC_LINKS <target-or-library>....]
 #     [PRIVATE_LINKS <target-or-library>....]
+#     [COMPILE_OPTIONS <option>...]
 #     [WARNINGS_DONT_ERROR]
 #     [INSTALLABLE]
 #         [INSTALL_DEPENDENCIES <package>...]
@@ -184,8 +185,8 @@ endfunction()
 #     SOURCE_FILES <source-file-pattern>...
 #     [PUBLIC_LINKS <target-or-library>....]
 #     [PRIVATE_LINKS <target-or-library>....]
+#     [COMPILE_OPTIONS <option>...]
 #     [WARNINGS_DONT_ERROR]
-#     [DISABLE_WARNINGS <warning>...]
 #     [INSTALLABLE]
 #         [INSTALL_DEPENDENCIES <package>...]
 #         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
@@ -242,14 +243,14 @@ function(qc_setup_target)
         message(FATAL_ERROR "Executable must not have interface links")
     endif()
 
+    # Verify `COMPILE_OPTIONS`
+    if(library_type STREQUAL "INTERFACE" AND _COMPILE_OPTIONS)
+        message(WARNING "`COMPILE_OPTIONS` specified for interface library")
+    endif()
+
     # Verify `WARNINGS_DONT_ERROR`
     if(library_type STREQUAL "INTERFACE" AND _WARNINGS_DONT_ERROR)
         message(WARNING "`WARNINGS_DONT_ERROR` specified for interface library")
-    endif()
-
-    # Verify `DISABLE_WARNINGS`
-    if(library_type STREQUAL "INTERFACE" AND _DISABLE_WARNINGS)
-        message(WARNING "`DISABLE_WARNINGS` specified for interface library")
     endif()
 
     # Validate install arguments
@@ -327,17 +328,15 @@ function(qc_setup_target)
         target_link_libraries(${target} INTERFACE ${_INTERFACE_LINKS})
     endif()
 
-    # Set warnings
+    # Set warnings and other compile options
     if(NOT library_type STREQUAL "INTERFACE")
         if(_WARNINGS_DONT_ERROR)
             set(warnings ${QC_WARNINGS})
         else()
             set(warnings ${QC_WARNINGS_ERROR})
         endif()
-        if(_DISABLE_WARNINGS)
-            list(REMOVE_ITEM warnings ${_DISABLE_WARNINGS})
-        endif()
-        target_compile_options(${target} PRIVATE ${warnings})
+
+        target_compile_options(${target} PRIVATE ${warnings} ${_COMPILE_OPTIONS})
     endif()
 
     # Installation stuff
