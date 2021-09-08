@@ -160,8 +160,7 @@ endfunction()
 #
 # qc_setup_target(
 #     <target>
-#     LIBRARY
-#     {STATIC|SHARED}
+#     {EXECUTABLE|STATIC_LIBRARY|SHARED_LIBRARY}
 #     [SOURCE_FILES <file>...]
 #     [PUBLIC_LINKS <target-or-library>....]
 #     [PRIVATE_LINKS <target-or-library>....]
@@ -174,22 +173,8 @@ endfunction()
 #
 # qc_setup_target(
 #     <target>
-#     LIBRARY
-#     INTERFACE
+#     INTERFACE_LIBRARY
 #     [INTERFACE_LINKS <target-or-library>....]
-#     [INSTALLABLE]
-#         [INSTALL_DEPENDENCIES <package>...]
-#         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
-# )
-#
-# qc_setup_target(
-#     <target>
-#     EXECUTABLE
-#     [SOURCE_FILES <file>...]
-#     [PUBLIC_LINKS <target-or-library>....]
-#     [PRIVATE_LINKS <target-or-library>....]
-#     [COMPILE_OPTIONS <option>...]
-#     [WARNINGS_DONT_ERROR]
 #     [INSTALLABLE]
 #         [INSTALL_DEPENDENCIES <package>...]
 #         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
@@ -206,58 +191,67 @@ function(qc_setup_target)
         PARSE_ARGV
         1
         ""
-        "LIBRARY;EXECUTABLE;STATIC;SHARED;INTERFACE;WARNINGS_DONT_ERROR;INSTALLABLE;WINDOWS_SUB_PROJECT_INSTALL_PREFIX"
+        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;WARNINGS_DONT_ERROR;INSTALLABLE;WINDOWS_SUB_PROJECT_INSTALL_PREFIX"
         ""
         "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS;INSTALL_DEPENDENCIES"
     )
     qc_check_args()
 
-    # Ensure either library or executable
-    if(_LIBRARY STREQUAL _EXECUTABLE)
-        message(FATAL_ERROR "Must provide either `LIBRARY` or `EXECUTABLE`")
-    endif()
-
-    # Set library type
+    # Set target and library type
+    unset(target_type)
     unset(library_type)
-    if(_STATIC)
-        list(APPEND library_type "STATIC")
+    if(_EXECUTABLE)
+        list(APPEND target_type "EXECUTABLE")
     endif()
-    if(_SHARED)
-        list(APPEND library_type "SHARED")
+    if(_STATIC_LIBRARY)
+        list(APPEND target_type "STATIC_LIBRARY")
+        set(library_type "STATIC")
+    endif()
+    if(_SHARED_LIBRARY)
+        list(APPEND target_type "SHARED_LIBRARY")
+        set(library_type "SHARED")
     endif()
     if(_INTERFACE)
-        list(APPEND library_type "INTERFACE")
+        list(APPEND target_type "INTERFACE_LIBRARY")
+        set(library_type "INTERFACE")
     endif()
 
-    # Verify library type
-    list(LENGTH library_type library_type_count)
-    if(_LIBRARY)
-        if(NOT library_type_count EQUAL 1)
-            message(FATAL_ERROR "Library must be specified as one of `STATIC`, `SHARED`, or `INTERFACE`")
+    # Verify target type
+    list(LENGTH target_type target_type_count)
+    if(NOT target_type_count EQUAL 1)
+        message(FATAL_ERROR "Must only provide one target type: `EXECUTABLE`, `STATIC_LIBRARY`, `SHARED_LIBRARY`, or `INTERFACE_LIBRARY`")
+    endif()
+
+    # Set helper flags
+    set(is_interface FALSE)
+    if(DEFINED library_type)
+        set(is_executable FALSE)
+        set(is_library TRUE)
+        if(library_type STREQUAL "INTERFACE")
+            set(is_interface TRUE)
         endif()
     else()
-        if(NOT library_type_count EQUAL 0)
-            message(FATAL_ERROR "Executable must not specify a library type")
-        endif()
+        set(is_executable TRUE)
+        set(is_library FALSE)
     endif()
 
     # Verify source files
-    if(DEFINED _SOURCE_FILES AND library_type STREQUAL "INTERFACE")
+    if(DEFINED _SOURCE_FILES AND is_interface)
         message(FATAL_ERROR "Interface library must not have source files")
     endif()
 
     # Verify links
-    if(DEFINED _INTERFACE_LINKS AND NOT library_type STREQUAL "INTERFACE")
-        message(FATAL_ERROR "Executable must not have interface links")
+    if(DEFINED _INTERFACE_LINKS AND NOT is_interface)
+        message(FATAL_ERROR "Only interface libraries may have interface links")
     endif()
 
     # Verify `COMPILE_OPTIONS`
-    if(library_type STREQUAL "INTERFACE" AND _COMPILE_OPTIONS)
+    if(_COMPILE_OPTIONS AND is_interface)
         message(WARNING "`COMPILE_OPTIONS` specified for interface library")
     endif()
 
     # Verify `WARNINGS_DONT_ERROR`
-    if(library_type STREQUAL "INTERFACE" AND _WARNINGS_DONT_ERROR)
+    if(_WARNINGS_DONT_ERROR AND is_interface)
         message(WARNING "`WARNINGS_DONT_ERROR` specified for interface library")
     endif()
 
@@ -290,10 +284,10 @@ function(qc_setup_target)
     endif()
 
     # Add library or executable
-    if(_LIBRARY)
-        add_library(${target} ${library_type} ${source_files})
-    else()
+    if(is_executable)
         add_executable(${target} ${source_files})
+    else()
+        add_library(${target} ${library_type} ${source_files})
     endif()
 
     # Set install prefix
@@ -307,8 +301,8 @@ function(qc_setup_target)
     endif()
 
     # Set include directory
-    if(_LIBRARY)
-        if (library_type STREQUAL "INTERFACE")
+    if(is_library)
+        if (is_interface)
             set(public_or_interface "INTERFACE")
         else()
             set(public_or_interface "PUBLIC")
@@ -323,7 +317,7 @@ function(qc_setup_target)
     endif()
 
     # Add additional `external` include directory
-    if(NOT library_type STREQUAL "INTERFACE")
+    if(NOT is_interface)
         target_include_directories(${target} PRIVATE external)
     endif()
 
@@ -339,7 +333,7 @@ function(qc_setup_target)
     endif()
 
     # Set warnings and other compile options
-    if(NOT library_type STREQUAL "INTERFACE")
+    if(NOT is_interface)
         if(_WARNINGS_DONT_ERROR)
             set(warnings ${QC_WARNINGS})
         else()
@@ -350,7 +344,7 @@ function(qc_setup_target)
     endif()
 
     # Set precompiled header
-    if(NOT library_type STREQUAL "INTERFACE")
+    if(NOT is_interface)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/source/pch.hpp)
             target_precompile_headers(${target} PRIVATE source/pch.hpp)
         elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
