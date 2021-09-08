@@ -185,6 +185,7 @@ endfunction()
 #     [PUBLIC_LINKS <target-or-library>....]
 #     [PRIVATE_LINKS <target-or-library>....]
 #     [WARNINGS_DONT_ERROR]
+#     [DISABLE_WARNINGS <warning>...]
 #     [INSTALLABLE]
 #         [INSTALL_DEPENDENCIES <package>...]
 #         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
@@ -244,6 +245,11 @@ function(qc_setup_target)
     # Verify `WARNINGS_DONT_ERROR`
     if(library_type STREQUAL "INTERFACE" AND _WARNINGS_DONT_ERROR)
         message(WARNING "`WARNINGS_DONT_ERROR` specified for interface library")
+    endif()
+
+    # Verify `DISABLE_WARNINGS`
+    if(library_type STREQUAL "INTERFACE" AND _DISABLE_WARNINGS)
+        message(WARNING "`DISABLE_WARNINGS` specified for interface library")
     endif()
 
     # Validate install arguments
@@ -324,10 +330,14 @@ function(qc_setup_target)
     # Set warnings
     if(NOT library_type STREQUAL "INTERFACE")
         if(_WARNINGS_DONT_ERROR)
-            target_compile_options(${target} PRIVATE ${QC_WARNINGS})
+            set(warnings ${QC_WARNINGS})
         else()
-            target_compile_options(${target} PRIVATE ${QC_WARNINGS_ERROR})
+            set(warnings ${QC_WARNINGS_ERROR})
         endif()
+        if(_DISABLE_WARNINGS)
+            list(REMOVE_ITEM warnings ${_DISABLE_WARNINGS})
+        endif()
+        target_compile_options(${target} PRIVATE ${warnings})
     endif()
 
     # Installation stuff
