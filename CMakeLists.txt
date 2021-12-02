@@ -6,7 +6,7 @@
 #
 
 # TODO: Determine actual minimum version
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.20)
 
 # The CheckIPOSupported module seems to be broken and causes linking errors
 #include(CheckIPOSupported)
@@ -145,7 +145,7 @@ function(qc_setup_general)
     qc_check_args()
 
     # Append `-d` to generated debug libs so they don't collide with release libs
-   set(CMAKE_DEBUG_POSTFIX -d)
+   set(CMAKE_DEBUG_POSTFIX -d PARENT_SCOPE)
 
     # Enable link-time optimization
     if(QC_RELEASE AND NOT _NO_LINK_TIME_OPTIMIZATION)
