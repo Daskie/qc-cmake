@@ -120,7 +120,7 @@ set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR} PARENT_SCOPE)
 # qc_check_args()
 #
 macro(qc_check_args)
-    if(DEFINED _UNPARSED_ARGUMENTS OR DEFINED _KEYWORDS_MISSING_VALUES)
+    if(DEFINED _UNPARSED_ARGUMENTS)
         message(FATAL_ERROR "Invalid arguments `${_UNPARSED_ARGUMENTS}`")
     endif()
     if(DEFINED _KEYWORDS_MISSING_VALUES)
@@ -144,7 +144,7 @@ function(qc_setup_general)
     )
     qc_check_args()
 
-    # Append `-d` to generated debug libs so they don't collide with release libs
+    # Append `-d` to generated debug libraries so they don't collide with release libraries
    set(CMAKE_DEBUG_POSTFIX -d PARENT_SCOPE)
 
     # Enable link-time optimization
@@ -162,8 +162,8 @@ endfunction()
 #     <target>
 #     {EXECUTABLE|STATIC_LIBRARY|SHARED_LIBRARY}
 #     [SOURCE_FILES <file>...]
-#     [PUBLIC_LINKS <target-or-library>....]
-#     [PRIVATE_LINKS <target-or-library>....]
+#     [PUBLIC_LINKS <target>...]
+#     [PRIVATE_LINKS <target>...]
 #     [COMPILE_OPTIONS <option>...]
 #     [WARNINGS_DONT_ERROR]
 #     [INSTALLABLE]
@@ -174,7 +174,7 @@ endfunction()
 # qc_setup_target(
 #     <target>
 #     INTERFACE_LIBRARY
-#     [INTERFACE_LINKS <target-or-library>....]
+#     [INTERFACE_LINKS <target>....]
 #     [INSTALLABLE]
 #         [INSTALL_DEPENDENCIES <package>...]
 #         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
@@ -265,21 +265,19 @@ function(qc_setup_target)
 
     # Find source files if not provided
     set(source_files ${_SOURCE_FILES})
-    if(NOT DEFINED _SOURCE_FILES)
+    if(NOT DEFINED _SOURCE_FILES AND NOT is_interface)
         # Determine source directory
         if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/source)
-            set(source_pattern source/*.cpp)
+            file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} source/*.cpp)
         elseif(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
-            set(source_pattern src/*.cpp)
+            file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} src/*.cpp)
         else()
-            set(source_pattern *.cpp)
+            file(GLOB source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
         endif()
-
-        file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${source_pattern})
 
         list(LENGTH source_files source_file_count)
         if(source_file_count EQUAL 0)
-            message(FATAL_ERROR "No source files found with pattern `${source_pattern}`")
+            message(FATAL_ERROR "No source files found under `${CMAKE_CURRENT_SOURCE_DIR}`")
         endif()
     endif()
 
@@ -325,9 +323,15 @@ function(qc_setup_target)
     if(DEFINED _PUBLIC_LINKS)
         target_link_libraries(${target} PUBLIC ${_PUBLIC_LINKS})
     endif()
-    if(DEFINED _PRIVATE_LINKS)
-        target_link_libraries(${target} PRIVATE ${_PRIVATE_LINKS})
-    endif()
+    foreach(private_link IN LISTS _PRIVATE_LINKS)
+        get_target_property(link_type ${private_link} TYPE)
+        if(link_type STREQUAL "INTERFACE_LIBRARY")
+            # Workaround to avoid private header-only libraries being added to the link interface
+            target_link_libraries(${target} PRIVATE $<BUILD_INTERFACE:${private_link}>)
+        else()
+            target_link_libraries(${target} PRIVATE ${private_link})
+        endif()
+    endforeach()
     if(DEFINED _INTERFACE_LINKS)
         target_link_libraries(${target} INTERFACE ${_INTERFACE_LINKS})
     endif()
@@ -385,7 +389,7 @@ function(qc_setup_target)
         if(DEFINED _INSTALL_DEPENDENCIES)
             string(APPEND template "\n# Dependencies\n")
             string(APPEND template "include(CMakeFindDependencyMacro)\n")
-            foreach(dependency ${_INSTALL_DEPENDENCIES})
+            foreach(dependency IN LISTS _INSTALL_DEPENDENCIES)
                 string(APPEND template "find_dependency(${dependency})\n")
             endforeach()
         endif()
@@ -403,6 +407,251 @@ function(qc_setup_target)
         # Install config.cmake files
         install(
             FILES ${CMAKE_CURRENT_BINARY_DIR}/${target}-config.cmake
+            DESTINATION ${install_prefix}${CMAKE_INSTALL_LIBDIR}/cmake/${target}
+        )
+    endif()
+endfunction()
+
+#
+# Helper function to generate a list suitable for `INTERFACE_LINK_LIBRARIES` from public and private link targets
+#
+function(_qc_create_interface_link_libraries_list out_links_list public_links private_links)
+    # Add `$<LINK_ONLY:...>` generator expression to private links
+    list(TRANSFORM private_links PREPEND "\$<LINK_ONLY:" OUTPUT_VARIABLE decorated_private_links)
+    list(TRANSFORM decorated_private_links APPEND ">" OUTPUT_VARIABLE decorated_private_links)
+
+    set(${out_links_list} ${public_links} ${decorated_private_links} PARENT_SCOPE)
+endfunction()
+
+#
+# Helper function to generate package install cmake files
+#
+function(_qc_create_package_files out_files_list package public_links private_links)
+    set(qualified_package ${CMAKE_PROJECT_NAME}::${package})
+
+    # Strip the public and private links down to just their namespaces to use as package dependencies
+    string(REGEX REPLACE "::[^;]+" "" package_dependencies "${public_links}" "${private_links}")
+    list(REMOVE_DUPLICATES package_dependencies)
+
+    # Add namespace onto any unqualified links (assuming they must come from current package)
+    list(TRANSFORM public_links PREPEND "${CMAKE_PROJECT_NAME}::" REGEX "^[^:]+\$")
+    list(TRANSFORM private_links PREPEND "${CMAKE_PROJECT_NAME}::" REGEX "^[^:]+\$")
+
+    _qc_create_interface_link_libraries_list(links_list "${public_links}" "${private_links}")
+
+    # Generate `<package>-config.cmake` file
+    set(config_file_content)
+    list(LENGTH package_dependencies package_dependencies_count)
+    if(package_dependencies_count GREATER 0)
+        string(APPEND config_file_content "# Dependencies\ninclude(CMakeFindDependencyMacro)\n")
+        foreach(dependency IN LISTS package_dependencies)
+            string(APPEND config_file_content "find_dependency(${dependency})\n")
+        endforeach()
+        string(APPEND config_file_content "\n")
+    endif()
+    string(APPEND config_file_content "include(\"\${CMAKE_CURRENT_LIST_DIR}/${package}-targets.cmake\")\n")
+
+    # Generate `<package>-targets.cmake` file
+    set(targets_file_content
+"\
+# Protect against multiple inclusion
+if (TARGET ${qualified_package})
+	return()
+endif()
+
+# Compute the installation prefix relative to this file.
+get_filename_component(install_prefix \${CMAKE_CURRENT_LIST_DIR} PATH)
+get_filename_component(install_prefix \${install_prefix} PATH)
+get_filename_component(install_prefix \${install_prefix} PATH)
+if(install_prefix STREQUAL \"/\")
+	set(install_prefix \"\")
+endif()
+
+# Create imported target
+add_library(${qualified_package} STATIC IMPORTED)
+set_target_properties(${qualified_package} PROPERTIES
+	INTERFACE_INCLUDE_DIRECTORIES \"\${install_prefix}/include\"
+	INTERFACE_LINK_LIBRARIES \"${links_list}\"
+)
+
+# Load information for each installed configuration
+file(GLOB config_files \"\${CMAKE_CURRENT_LIST_DIR}/${package}-targets-*.cmake\")
+foreach(config_file IN LISTS config_files)
+	include(\${config_file})
+endforeach()
+
+# Cleanup temporary variables
+unset(install_prefix)
+")
+
+    if(QC_DEBUG)
+        set(configuration_string_upper "DEBUG")
+        set(configuration_string_lower "debug")
+        set(library_file_postfix "${CMAKE_DEBUG_POSTFIX}")
+    else()
+        set(configuration_string_upper "RELEASE")
+        set(configuration_string_lower "release")
+        set(library_file_postfix)
+    endif()
+
+    # Generate `<package>-targets-{debug|release}.cmake` file
+    set(targets_configuration_file_content
+"\
+set(library_file \"\${install_prefix}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${package}${library_file_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX}\")
+
+# Import target for configuration `${configuration_string_lower}`
+set_property(TARGET ${qualified_package} APPEND PROPERTY IMPORTED_CONFIGURATIONS ${configuration_string_upper})
+set_target_properties(${qualified_package} PROPERTIES
+	IMPORTED_LINK_INTERFACE_LANGUAGES_${configuration_string_upper} \"CXX\"
+	IMPORTED_LOCATION_${configuration_string_upper} \${library_file}
+)
+
+# Ensure the library file exists
+if(NOT EXISTS \${library_file})
+	message(FATAL_ERROR \"Expected to find library file `\${library_file}` for target `${qualified_package}`\")
+endif()
+
+unset(library_file)
+")
+
+    set(config_file "${CMAKE_CURRENT_BINARY_DIR}/${package}-config.cmake")
+    set(targets_file "${CMAKE_CURRENT_BINARY_DIR}/${package}-targets.cmake")
+    set(targets_configuration_file "${CMAKE_CURRENT_BINARY_DIR}/${package}-targets-${configuration_string_lower}.cmake")
+
+    # Write files to disk
+    file(WRITE ${config_file} "${config_file_content}")
+    file(WRITE ${targets_file} "${targets_file_content}")
+    file(WRITE ${targets_configuration_file} "${targets_configuration_file_content}")
+
+    # Return the file paths
+    set(${out_files_list} ${config_file} ${targets_file} ${targets_configuration_file} PARENT_SCOPE)
+endfunction()
+
+#
+# Combines multiple static libraries together
+#
+# See https://cristianadam.eu/20190501/bundling-together-static-libraries-with-cmake/
+#
+# qc_bundle_static_libraries(
+#     <target>
+#     BUNDLE_LIBRARIES <target>...
+#     PUBLIC_LINKS <target>...
+#     PRIVATE_LINKS <target>...
+#     [INSTALLABLE]
+#         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
+# )
+#
+function(qc_bundle_static_libraries)
+    if(ARGC LESS 1)
+        message(FATAL_ERROR "Missing target")
+    endif()
+
+    set(target ${ARGV0})
+
+    cmake_parse_arguments(
+        PARSE_ARGV
+        1
+        ""
+        "INSTALLABLE;WINDOWS_SUB_PROJECT_INSTALL_PREFIX"
+        ""
+        "BUNDLE_LIBRARIES;PUBLIC_LINKS;PRIVATE_LINKS"
+    )
+    qc_check_args()
+
+    # Verify bundle libraries
+    if(NOT DEFINED _BUNDLE_LIBRARIES)
+        message(FATAL_ERROR "Must provide at least one bundle library")
+    endif()
+
+    # Validate install arguments
+    if(_WINDOWS_SUB_PROJECT_INSTALL_PREFIX AND NOT _INSTALLABLE)
+        message(WARNING "`WINDOWS_SUB_PROJECT_INSTALL_PREFIX` specified for uninstallable target")
+    endif()
+
+    # Set install prefix
+    # For some reason using `.` in the normal case breaks things, so we use an empty string and adjust accordingly
+    if(_INSTALLABLE AND _WINDOWS_SUB_PROJECT_INSTALL_PREFIX AND WIN32)
+        set(install_prefix ${target}/)
+        set(install_prefix_alone ${target})
+    else()
+        unset(install_prefix)
+        set(install_prefix_alone ".")
+    endif()
+
+    # Get list of library files from each bundle target
+    unset(bundle_library_files)
+    foreach(bundle_target IN LISTS _BUNDLE_LIBRARIES)
+        get_target_property(target_type ${bundle_target} TYPE)
+        if(NOT target_type STREQUAL "STATIC_LIBRARY")
+            if(target_type STREQUAL "UNKNOWN_LIBRARY")
+                # TODO: Figure out why Freetype is `UNKOWN_LIBRARY`
+                message(WARNING "Bundle target `${bundle_target}` has type `UNKNOWN_LIBRARY`")
+            else()
+                message(FATAL_ERROR "Bundle target `${bundle_target}` must have type `STATIC_LIBRARY` but has type `${target_type}`")
+            endif()
+        endif()
+       list(APPEND bundle_library_files $<TARGET_FILE:${bundle_target}>)
+    endforeach()
+
+    # Determine filepath for generated bundled library file
+    unset(library_file_postfix)
+    if(QC_DEBUG)
+        set(library_file_postfix ${CMAKE_DEBUG_POSTFIX})
+    endif()
+    set(bundled_library_file ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${target}${library_file_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+    # Combine the libraries
+    if (QC_MSVC)
+        find_program(lib_tool lib)
+        add_custom_command(
+            COMMAND ${lib_tool} /NOLOGO /OUT:${bundled_library_file} ${bundle_library_files}
+            OUTPUT ${bundled_library_file}
+            COMMENT "Bundling static libraries into ${target}..."
+            VERBATIM
+            COMMAND_EXPAND_LISTS
+        )
+    else()
+        # TODO
+        message(FATAL_ERROR "Currently only MSVC is supported for bundling static libraries")
+    endif()
+
+    # Create target for generating bundled library
+    add_custom_target(${target}-bundling ALL DEPENDS ${bundled_library_file})
+    add_dependencies(${target}-bundling ${_BUNDLE_LIBRARIES})
+
+    _qc_create_interface_link_libraries_list(links_list "${_PUBLIC_LINKS}" "${_PRIVATE_LINKS}")
+
+    # Create bundled library
+    add_library(${target} STATIC IMPORTED GLOBAL)
+    set_target_properties(
+        ${target}
+        PROPERTIES
+            IMPORTED_LOCATION ${bundled_library_file}
+            INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include
+            INTERFACE_LINK_LIBRARIES "${links_list}"
+    )
+    add_dependencies(${target} ${target}-bundling)
+
+    # Installation stuff
+    # See https://cmake.org/cmake/help/git-stage/guide/importing-exporting/index.html
+    if(_INSTALLABLE)
+        _qc_create_package_files(package_files ${target} "${_PUBLIC_LINKS}" "${_PRIVATE_LINKS}")
+
+        # Install bundled library file
+        install(
+            FILES ${bundled_library_file}
+            DESTINATION ${install_prefix}${CMAKE_INSTALL_LIBDIR}
+        )
+
+        # Install include directory
+        install(
+            DIRECTORY include
+            DESTINATION ${install_prefix_alone}
+        )
+
+        # Install package cmake files
+        install(
+            FILES ${package_files}
             DESTINATION ${install_prefix}${CMAKE_INSTALL_LIBDIR}/cmake/${target}
         )
     endif()
