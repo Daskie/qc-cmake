@@ -180,13 +180,7 @@ endfunction()
 #         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
 # )
 #
-function(qc_setup_target)
-    if(ARGC LESS 1)
-        message(FATAL_ERROR "Missing target")
-    endif()
-
-    set(target ${ARGV0})
-
+function(qc_setup_target target)
     cmake_parse_arguments(
         PARSE_ARGV
         1
@@ -244,6 +238,11 @@ function(qc_setup_target)
     if(DEFINED _INTERFACE_LINKS AND NOT is_interface)
         message(FATAL_ERROR "Only interface libraries may have interface links")
     endif()
+    foreach(item IN LISTS _PUBLIC_LINKS _PRIVATE_LINKS _INTERFACE_LINKS)
+        if(NOT TARGET ${item})
+            message(FATAL_ERROR "`${item}` is not a target")
+        endif()
+    endforeach()
 
     # Verify `COMPILE_OPTIONS`
     if(_COMPILE_OPTIONS AND is_interface)
@@ -541,13 +540,7 @@ endfunction()
 #         [WINDOWS_SUB_PROJECT_INSTALL_PREFIX]
 # )
 #
-function(qc_bundle_static_libraries)
-    if(ARGC LESS 1)
-        message(FATAL_ERROR "Missing target")
-    endif()
-
-    set(target ${ARGV0})
-
+function(qc_bundle_static_libraries target)
     cmake_parse_arguments(
         PARSE_ARGV
         1
@@ -562,6 +555,13 @@ function(qc_bundle_static_libraries)
     if(NOT DEFINED _BUNDLE_LIBRARIES)
         message(FATAL_ERROR "Must provide at least one bundle library")
     endif()
+
+    # Verify bundle libraries and public/priate links are targets
+    foreach(item IN LISTS _BUNDLE_LIBRARIES _PUBLIC_LINKS _PRIVATE_LINKS)
+        if(NOT TARGET ${item})
+            message(FATAL_ERROR "`${item}` is not a target")
+        endif()
+    endforeach()
 
     # Validate install arguments
     if(_WINDOWS_SUB_PROJECT_INSTALL_PREFIX AND NOT _INSTALLABLE)
