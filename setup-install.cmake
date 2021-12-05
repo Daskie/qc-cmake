@@ -96,10 +96,14 @@ function(qc_setup_install target)
     endif()
 
     # Install include directory
-    install(
-        DIRECTORY include/
-        DESTINATION ${install_prefix}include
-    )
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
+        install(
+            DIRECTORY include/ # Trailing slash means everything WITHIN the directory is copied rather than the directory itself being copied
+            DESTINATION ${install_prefix}include
+        )
+    else()
+        message(WARNING "No `include` directory found to install for target `${target}`")
+    endif()
 
     # Install package cmake files
     install(

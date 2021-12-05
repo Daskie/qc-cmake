@@ -3,7 +3,7 @@ include_guard()
 include(utility.cmake)
 
 set(QC_WARNINGS_MSVC
-    /W4 # Typical baseline
+    /W4     # Typical baseline
     /w14242 # 'identifier': conversion from 'type1' to 'type1', possible loss of data
     /w14254 # 'operator': conversion from 'type1:field_bits' to 'type2:field_bits', possible loss of data
     /w14263 # 'function': member function does not override any base class virtual member function
@@ -27,29 +27,29 @@ set(QC_WARNINGS_MSVC
 )
 
 set(QC_WARNINGS_CLANG
-    -Wall # Typical baseline
-    -Wextra # More standard warnings
-    -Wshadow # Warn the user if a variable declaration shadows one from a parent context
-    -Wnon-virtual-dtor # Warn the user if a class with virtual functions has a non-virtual destructor. This helps catch hard to track down memory errors
-    -Wold-style-cast # Warn for c-style casts
-    -Wcast-align # Warn for potential performance problem casts
-    -Wunused # Warn on anything being unused
+    -Wall                # Typical baseline
+    -Wextra              # More standard warnings
+    -Wshadow             # Warn the user if a variable declaration shadows one from a parent context
+    -Wnon-virtual-dtor   # Warn the user if a class with virtual functions has a non-virtual destructor. This helps catch hard to track down memory errors
+    -Wold-style-cast     # Warn for c-style casts
+    -Wcast-align         # Warn for potential performance problem casts
+    -Wunused             # Warn on anything being unused
     -Woverloaded-virtual # Warn if you overload (not override) a virtual function
-    -Wpedantic # Warn if non-standard C++ is used
-    -Wconversion # Warn on type conversions that may lose data
-    -Wsign-conversion # Warn on sign conversions
-    -Wnull-dereference # Warn if a null dereference is detected
-    -Wdouble-promotion # Warn if float is implicit promoted to double
-    -Wformat=2 # Warn on security issues around functions that format output (ie printf)
+    -Wpedantic           # Warn if non-standard C++ is used
+    -Wconversion         # Warn on type conversions that may lose data
+    -Wsign-conversion    # Warn on sign conversions
+    -Wnull-dereference   # Warn if a null dereference is detected
+    -Wdouble-promotion   # Warn if float is implicit promoted to double
+    -Wformat=2           # Warn on security issues around functions that format output (ie printf)
 )
 
 set(QC_WARNINGS_GCC
     ${QC_WARNINGS_CLANG}
     -Wmisleading-indentation # Warn if indentation implies blocks where blocks do not exist
-    -Wduplicated-cond # Warn if if / else chain has duplicated conditions
-    -Wduplicated-branches # Warn if if / else branches have duplicated code
-    -Wlogical-op # Warn about logical operations being used where bitwise were probably wanted
-    -Wuseless-cast # Warn if you perform a cast to the same type
+    -Wduplicated-cond        # Warn if if / else chain has duplicated conditions
+    -Wduplicated-branches    # Warn if if / else branches have duplicated code
+    -Wlogical-op             # Warn about logical operations being used where bitwise were probably wanted
+    -Wuseless-cast           # Warn if you perform a cast to the same type
 )
 
 # Warnings as errors
@@ -67,7 +67,5 @@ elseif(CMAKE_GCC)
     set(QC_WARNINGS ${QC_WARNINGS_GCC})
     set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_GCC})
 endif()
-
-# Allow warnings to be accessed from parent scope
 set(QC_WARNINGS ${QC_WARNINGS} PARENT_SCOPE)
 set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR} PARENT_SCOPE)

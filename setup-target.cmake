@@ -26,9 +26,9 @@ function(qc_setup_target target)
         PARSE_ARGV
         1
         ""
-        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;WARNINGS_DONT_ERROR;INSTALLABLE;WINDOWS_SUB_PROJECT_INSTALL_PREFIX"
+        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;WARNINGS_DONT_ERROR"
         ""
-        "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS;INSTALL_DEPENDENCIES"
+        "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS"
     )
     qc_check_args()
 
@@ -95,14 +95,6 @@ function(qc_setup_target target)
         message(WARNING "`WARNINGS_DONT_ERROR` specified for interface library")
     endif()
 
-    # Validate install arguments
-    if(_INSTALL_DEPENDENCIES AND NOT _INSTALLABLE)
-        message(WARNING "Install dependencies specified for uninstallable target")
-    endif()
-    if(_WINDOWS_SUB_PROJECT_INSTALL_PREFIX AND NOT _INSTALLABLE)
-        message(WARNING "`WINDOWS_SUB_PROJECT_INSTALL_PREFIX` specified for uninstallable target")
-    endif()
-
     # Find source files if not provided
     set(source_files ${_SOURCE_FILES})
     if(NOT DEFINED _SOURCE_FILES AND NOT is_interface)
@@ -128,16 +120,6 @@ function(qc_setup_target target)
         add_library(${target} ${library_type} ${source_files})
     endif()
 
-    # Set install prefix
-    # For some reason using `.` in the normal case breaks things, so we use an empty string and adjust accordingly
-    if(_INSTALLABLE AND _WINDOWS_SUB_PROJECT_INSTALL_PREFIX AND WIN32)
-        set(install_prefix ${target}/)
-        set(install_prefix_alone ${target})
-    else()
-        unset(install_prefix)
-        set(install_prefix_alone ".")
-    endif()
-
     # Set include directory
     if(is_library)
         if (is_interface)
@@ -149,16 +131,17 @@ function(qc_setup_target target)
         target_include_directories(
             ${target}
             ${public_or_interface}
+                # Not using generator expressions since we generate our own package install files
                 ${CMAKE_CURRENT_SOURCE_DIR}/include
         )
     endif()
 
     # Add additional `external` include directory
-    if(NOT is_interface)
+    if(NOT is_interface AND IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external)
         target_include_directories(${target} PRIVATE external)
     endif()
 
-    # Links
+    # Do links
     if(DEFINED _PUBLIC_LINKS)
         target_link_libraries(${target} PUBLIC ${_PUBLIC_LINKS})
     endif()
