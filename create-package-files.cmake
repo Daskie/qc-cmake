@@ -4,38 +4,53 @@ include(utility.cmake)
 
 #-------------------------------------------------------------------------------
 
-macro(_qc_generate_package_config_file)
-    unset(config_file_content)
+function(_qc_generate_package_config_file dependencies out_file)
+    set(package ${CMAKE_PROJECT_NAME})
+
+    set(file_content "\
+#
+# Generated config file for package `${package}`
+#
+
+")
     list(LENGTH dependencies dependencies_count)
     if(dependencies_count GREATER 0)
-        string(APPEND config_file_content "\
+        string(APPEND file_content "\
 # Dependencies
 include(CMakeFindDependencyMacro)")
         foreach(dependency IN LISTS dependencies)
-            string(APPEND config_file_content "
+            string(APPEND file_content "
 find_dependency(${dependency})")
         endforeach()
-        string(APPEND config_file_content "
+        string(APPEND file_content "
 
 ")
     endif()
-    string(APPEND config_file_content "\
+    string(APPEND file_content "\
 include(\"\${CMAKE_CURRENT_LIST_DIR}/${package}-targets.cmake\")
 ")
 
-    set(config_file "${CMAKE_CURRENT_BINARY_DIR}/${package}-config.cmake")
-    file(WRITE ${config_file} "${config_file_content}")
-    list(APPEND files_list ${config_file})
-endmacro()
+    set(file "${CMAKE_CURRENT_BINARY_DIR}/${package}-config.cmake")
+    file(WRITE ${file} "${file_content}")
+    set(${out_file} ${file} PARENT_SCOPE)
+endfunction()
 
 #-------------------------------------------------------------------------------
 
-macro(_qc_generate_package_targets_file)
-    set(targets_file_content "\
+function(_qc_generate_package_targets_file targets per_target_public_links per_target_private_links out_file)
+    set(package ${CMAKE_PROJECT_NAME})
+
+    set(file_content "\
+#
+# Generated target import file for package `${package}`
+#
+
 # Protect against multiple inclusion
-if (TARGET ${qualified_package})
-	return()
-endif()
+foreach(target ${targets})
+    if(TARGET ${package}::\${target})
+    	return()
+    endif()
+endforeach()
 
 # Compute the installation prefix relative to this file.
 get_filename_component(install_prefix \${CMAKE_CURRENT_LIST_DIR} PATH)
@@ -45,16 +60,39 @@ if(install_prefix STREQUAL \"/\")
 	set(install_prefix \"\")
 endif()
 
-# Create imported target
-add_library(${qualified_package} ${library_type} IMPORTED)
-set_target_properties(${qualified_package} PROPERTIES
+")
+    foreach(target public_links_var private_links_var IN ZIP_LISTS targets per_target_public_links per_target_private_links)
+        set(public_links ${${public_links_var}})
+        set(private_links ${${private_links_var}})
+
+        get_target_property(target_type ${target} TYPE)
+        if(target_type STREQUAL "STATIC_LIBRARY")
+            set(library_type "STATIC")
+        elseif(target_type STREQUAL "INTERFACE_LIBRARY")
+            set(library_type "INTERFACE")
+        else()
+            set(library_type "UNSUPPORTED")
+        endif()
+
+        _qc_make_interface_link_libraries_list("${public_links}" "${private_links}" links_list)
+
+        string(APPEND file_content "\
+# Create imported target `${target}`
+add_library(${package}::${target} ${library_type} IMPORTED)
+set_target_properties(${package}::${target} PROPERTIES
 	INTERFACE_INCLUDE_DIRECTORIES \"\${install_prefix}/include\"")
-    if(DEFINED links_list)
-	    string(APPEND targets_file_content "
+        if(DEFINED links_list)
+	        string(APPEND file_content "
 	INTERFACE_LINK_LIBRARIES \"${links_list}\"")
-    endif()
-    string(APPEND targets_file_content "
+        endif()
+    string(APPEND file_content "
 )
+
+")
+    endforeach()
+    string(APPEND file_content "\
+# Clear files to check list to be populated by the configuration files
+unset(files_to_check)
 
 # Load information for each installed configuration
 file(GLOB config_files \"\${CMAKE_CURRENT_LIST_DIR}/${package}-targets-*.cmake\")
@@ -62,60 +100,27 @@ foreach(config_file IN LISTS config_files)
 	include(\${config_file})
 endforeach()
 
-# Cleanup temporary variables
-unset(install_prefix)
-")
-
-    set(targets_file "${CMAKE_CURRENT_BINARY_DIR}/${package}-targets.cmake")
-    file(WRITE ${targets_file} "${targets_file_content}")
-    list(APPEND files_list ${targets_file})
-endmacro()
-
-#-------------------------------------------------------------------------------
-
-macro(_qc_generate_package_targets_configuration_file)
-    set(targets_configuration_file_content "\
-set(library_file \"\${install_prefix}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${package}${library_file_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX}\")
-
-# Import target for configuration `${configuration_string_lower}`
-set_property(TARGET ${qualified_package} APPEND PROPERTY IMPORTED_CONFIGURATIONS ${configuration_string_upper})
-set_target_properties(${qualified_package} PROPERTIES
-	IMPORTED_LINK_INTERFACE_LANGUAGES_${configuration_string_upper} \"CXX\"
-	IMPORTED_LOCATION_${configuration_string_upper} \${library_file}
-)
-
-# Ensure the library file exists
-if(NOT EXISTS \${library_file})
-	message(FATAL_ERROR \"Expected to find library file `\${library_file}` for target `${qualified_package}`\")
-endif()
-
-unset(library_file)
-")
-
-    set(targets_configuration_file "${CMAKE_CURRENT_BINARY_DIR}/${package}-targets-${configuration_string_lower}.cmake")
-    file(WRITE ${targets_configuration_file} "${targets_configuration_file_content}")
-    list(APPEND files_list ${targets_configuration_file})
-endmacro()
-
-#-------------------------------------------------------------------------------
-
-#
-# Helper function to generate package install cmake files
-#
-function(qc_create_package_files package package_type public_links private_links dependencies out_files_list)
-    unset(files_list)
-
-    set(qualified_package ${CMAKE_PROJECT_NAME}::${package})
-
-    if(package_type STREQUAL "STATIC_LIBRARY")
-        set(library_type "STATIC")
-    elseif(package_type STREQUAL "INTERFACE_LIBRARY")
-        set(library_type "INTERFACE")
-    else()
-        set(library_type "UNSUPPORTED")
+# Check that files exist
+foreach(file IN LISTS files_to_check)
+    if(NOT EXISTS \${file})
+	    message(FATAL_ERROR \"Expected to find file `\${file}` for package `${package}`\")
     endif()
+endforeach()
 
-    _qc_make_interface_link_libraries_list("${public_links}" "${private_links}" links_list)
+# Cleanup variables
+unset(install_prefix)
+unset(files_to_check)
+")
+
+    set(file "${CMAKE_CURRENT_BINARY_DIR}/${package}-targets.cmake")
+    file(WRITE ${file} "${file_content}")
+    set(${out_file} ${file} PARENT_SCOPE)
+endfunction()
+
+#-------------------------------------------------------------------------------
+
+function(_qc_generate_package_targets_configuration_file targets out_file)
+    set(package ${CMAKE_PROJECT_NAME})
 
     if(QC_DEBUG)
         set(configuration_string_upper "DEBUG")
@@ -127,15 +132,63 @@ function(qc_create_package_files package package_type public_links private_links
         unset(library_file_postfix)
     endif()
 
+    set(file_content "\
+#
+# Generated target configuration import file for package: `${package}` configuration `${configuration_string_lower}`
+#
+")
+    foreach(target IN LISTS targets)
+        get_target_property(target_type ${target} TYPE)
+        if(target_type STREQUAL "STATIC_LIBRARY")
+            set(library_file \${install_prefix}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${target}${library_file_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX})
+            string(APPEND file_content "
+# Import target `${target}`
+set_property(TARGET ${package}::${target} APPEND PROPERTY IMPORTED_CONFIGURATIONS ${configuration_string_upper})
+set_target_properties(${package}::${target} PROPERTIES
+	IMPORTED_LINK_INTERFACE_LANGUAGES_${configuration_string_upper} \"CXX\"
+	IMPORTED_LOCATION_${configuration_string_upper} \"${library_file}\"
+)
+list(APPEND files_to_check \"${library_file}\")
+")
+    endif()
+    endforeach()
+
+    set(file "${CMAKE_CURRENT_BINARY_DIR}/${package}-targets-${configuration_string_lower}.cmake")
+    file(WRITE ${file} "${file_content}")
+    set(${out_file} ${file} PARENT_SCOPE)
+endfunction()
+
+#-------------------------------------------------------------------------------
+
+#
+# Helper function to generate package install cmake files
+#
+function(qc_create_package_files targets per_target_public_links per_target_private_links dependencies out_files_list)
+    unset(files_list)
+
+    set(package ${CMAKE_PROJECT_NAME})
+
     # Generate `<package>-config.cmake` file
-    _qc_generate_package_config_file()
+    _qc_generate_package_config_file("${dependencies}" config_file)
+    list(APPEND files_list ${config_file})
 
     # Generate `<package>-targets.cmake` file
-    _qc_generate_package_targets_file()
+    _qc_generate_package_targets_file("${targets}" "${per_target_public_links}" "${per_target_private_links}" targets_file)
+    list(APPEND files_list ${targets_file})
+
+    # Check if any of the targets are static libraries
+    set(any_static_libraries FALSE)
+    foreach(target IN LISTS targets)
+        get_target_property(target_type ${target} TYPE)
+        if(target_type STREQUAL "STATIC_LIBRARY")
+            set(any_static_libraries TRUE)
+        endif()
+    endforeach()
 
     # Generate `<package>-targets-{debug|release}.cmake` file
-    if(NOT package_type STREQUAL "INTERFACE_LIBRARY")
-        _qc_generate_package_targets_configuration_file()
+    if(any_static_libraries)
+        _qc_generate_package_targets_configuration_file("${targets}" targets_configuration_file)
+        list(APPEND files_list ${targets_configuration_file})
     endif()
 
     # Return the file paths
