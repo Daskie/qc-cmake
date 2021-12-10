@@ -68,9 +68,9 @@ function(qc_bundle_static_libraries target)
         qc_list_to_pretty_string("${_BUNDLE_LIBRARIES}" bundle_libraries_string)
         find_program(lib_tool lib)
         add_custom_command(
+            COMMAND ${CMAKE_COMMAND} -E echo "Bundling static libraries ${bundle_libraries_string} into `${target}`..."
             COMMAND ${lib_tool} /NOLOGO /OUT:${bundled_library_file} ${bundle_library_files}
             OUTPUT ${bundled_library_file}
-            COMMENT "Bundling static libraries ${bundle_libraries_string} into `${target}`..."
             VERBATIM
             COMMAND_EXPAND_LISTS
         )
@@ -102,4 +102,19 @@ function(qc_bundle_static_libraries target)
 
     # Add bundling target as dependency
     add_dependencies(${target} ${target}-bundling)
+
+    # Make any local bundle libraries remove the bundled library file after they build
+    # This will make the bundled library rebuild when any of its bundle libraries rebuild
+    foreach(bundle_target IN LISTS _BUNDLE_LIBRARIES)
+        get_target_property(is_imported ${bundle_target} IMPORTED)
+        if(NOT is_imported)
+            add_custom_command(
+                TARGET ${bundle_target}
+                POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E echo "Removing `${target}`'s bundled static library file..."
+                COMMAND ${CMAKE_COMMAND} -E remove ${bundled_library_file}
+                VERTBATIM
+            )
+        endif()
+    endforeach()
 endfunction()
