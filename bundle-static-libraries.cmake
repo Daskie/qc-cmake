@@ -20,40 +20,51 @@ function(qc_bundle_static_libraries target)
         1
         ""
         ""
-        ""
+        "UNBUNDLED_LIBRARY"
         "BUNDLE_LIBRARIES;PUBLIC_LINKS;PRIVATE_LINKS"
     )
     qc_check_args()
 
-    # Verify bundle libraries
+    # Verify unbundled library is present
+    if(NOT DEFINED _UNBUNDLED_LIBRARY)
+        message(FATAL_ERROR "Must provide unbundled library")
+    endif()
+
+    # Verify bundle libraries are present
     if(NOT DEFINED _BUNDLE_LIBRARIES)
         message(FATAL_ERROR "Must provide at least one bundle library")
     endif()
 
-    # Verify bundle libraries and public/private links are targets
-    foreach(item IN LISTS _BUNDLE_LIBRARIES _PUBLIC_LINKS _PRIVATE_LINKS)
+    # Verify everything is a target
+    foreach(item IN LISTS _UNBUNDLED_LIBRARY _BUNDLE_LIBRARIES _PUBLIC_LINKS _PRIVATE_LINKS)
         if(NOT TARGET ${item})
             message(FATAL_ERROR "`${item}` is not a target")
         endif()
     endforeach()
 
-    # Verify bundle libraries are static libraries
-    foreach(bundle_target IN LISTS _BUNDLE_LIBRARIES)
-        get_target_property(target_type ${bundle_target} TYPE)
+    # Verify unbundled library is not imported
+    get_target_property(is_imported ${_UNBUNDLED_LIBRARY} IMPORTED)
+    if(is_imported)
+        message(FATAL_ERROR "Unbundled library `${_UNBUNDLED_LIBRARY}` must not be imported")
+    endif()
+
+    # Verify all libraries are static
+    foreach(target IN LISTS _UNBUNDLED_LIBRARY _BUNDLE_LIBRARIES)
+        get_target_property(target_type ${target} TYPE)
         if(NOT target_type STREQUAL "STATIC_LIBRARY")
             if(target_type STREQUAL "UNKNOWN_LIBRARY")
                 # TODO: Figure out why Freetype is `UNKOWN_LIBRARY`
-                message(WARNING "Bundle target `${bundle_target}` has type `UNKNOWN_LIBRARY`")
+                message(WARNING "Target `${target}` has type `UNKNOWN_LIBRARY`")
             else()
-                message(FATAL_ERROR "Bundle target `${bundle_target}` must have type `STATIC_LIBRARY` but has type `${target_type}`")
+                message(FATAL_ERROR "Target `${target}` must have type `STATIC_LIBRARY` but has type `${target_type}`")
             endif()
         endif()
     endforeach()
 
-    # Get list of library files from each bundle library
-    unset(bundle_library_files)
-    foreach(bundle_target IN LISTS _BUNDLE_LIBRARIES)
-       list(APPEND bundle_library_files $<TARGET_FILE:${bundle_target}>)
+    # Get list of library files to bundle
+    unset(loose_library_files)
+    foreach(target IN LISTS _UNBUNDLED_LIBRARY _BUNDLE_LIBRARIES)
+       list(APPEND loose_library_files $<TARGET_FILE:${target}>)
     endforeach()
 
     # Determine filepath for generated bundled library file
@@ -64,13 +75,15 @@ function(qc_bundle_static_libraries target)
     set(bundled_library_file ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${target}${library_file_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX})
 
     # Combine the libraries
-    if (QC_MSVC)
-        qc_list_to_pretty_string("${_BUNDLE_LIBRARIES}" bundle_libraries_string)
+    if(QC_MSVC)
+        qc_list_to_pretty_string("${_UNBUNDLED_LIBRARY};${_BUNDLE_LIBRARIES}" bundle_libraries_string)
         find_program(lib_tool lib)
         add_custom_command(
+            TARGET ${_UNBUNDLED_LIBRARY}
+            POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E echo "Bundling static libraries ${bundle_libraries_string} into `${target}`..."
-            COMMAND ${lib_tool} /NOLOGO /OUT:${bundled_library_file} ${bundle_library_files}
-            OUTPUT ${bundled_library_file}
+            COMMAND ${lib_tool} /NOLOGO /OUT:${bundled_library_file} ${loose_library_files}
+            BYPRODUCTS ${bundled_library_file}
             VERBATIM
             COMMAND_EXPAND_LISTS
         )
@@ -79,19 +92,16 @@ function(qc_bundle_static_libraries target)
         message(FATAL_ERROR "Currently only MSVC is supported for bundling static libraries")
     endif()
 
-    # Create target for generating bundled library
-    add_custom_target(${target}-bundling ALL DEPENDS ${bundled_library_file})
-    add_dependencies(${target}-bundling ${_BUNDLE_LIBRARIES})
-
     # Create bundled library
     add_library(${target} STATIC IMPORTED GLOBAL)
 
     # Set imported location and include directory
+    get_target_property(include_dirs ${_UNBUNDLED_LIBRARY} INTERFACE_INCLUDE_DIRECTORIES)
     set_target_properties(
         ${target}
         PROPERTIES
             IMPORTED_LOCATION ${bundled_library_file}
-            INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include
+            INTERFACE_INCLUDE_DIRECTORIES "${include_dirs}"
     )
 
     # Add links
@@ -100,21 +110,6 @@ function(qc_bundle_static_libraries target)
         set_target_properties(${target} PROPERTIES INTERFACE_LINK_LIBRARIES "${links_list}")
     endif()
 
-    # Add bundling target as dependency
-    add_dependencies(${target} ${target}-bundling)
-
-    # Make any local bundle libraries remove the bundled library file after they build
-    # This will make the bundled library rebuild when any of its bundle libraries rebuild
-    foreach(bundle_target IN LISTS _BUNDLE_LIBRARIES)
-        get_target_property(is_imported ${bundle_target} IMPORTED)
-        if(NOT is_imported)
-            add_custom_command(
-                TARGET ${bundle_target}
-                POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E echo "Removing `${target}`'s bundled static library file..."
-                COMMAND ${CMAKE_COMMAND} -E remove ${bundled_library_file}
-                VERTBATIM
-            )
-        endif()
-    endforeach()
+    # Make sure the unbundled library is built first
+    add_dependencies(${target} ${_UNBUNDLED_LIBRARY})
 endfunction()
