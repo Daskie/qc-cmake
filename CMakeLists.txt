@@ -10,7 +10,6 @@ cmake_minimum_required(VERSION 3.20)
 
 include(utility.cmake)
 include(warnings.cmake)
-include(setup-general.cmake)
 include(setup-target.cmake)
 include(setup-install.cmake)
 include(bundle-static-libraries.cmake)

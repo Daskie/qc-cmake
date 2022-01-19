@@ -11,14 +11,17 @@ include(utility.cmake)
 #     [SOURCE_FILES <file>...]
 #     [PUBLIC_LINKS <target>...]
 #     [PRIVATE_LINKS <target>...]
+#     [CXX_STANDARD <cxx_standard>]
 #     [COMPILE_OPTIONS <option>...]
 #     [WARNINGS_DONT_ERROR]
+#     [NO_LINK_TIME_OPTIMIZATION]
 # )
 #
 # qc_setup_target(
 #     <target>
 #     INTERFACE_LIBRARY
 #     [INTERFACE_LINKS <target>....]
+#     [CXX_STANDARD <cxx_standard>]
 # )
 #
 function(qc_setup_target target)
@@ -26,8 +29,8 @@ function(qc_setup_target target)
         PARSE_ARGV
         1
         ""
-        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;WARNINGS_DONT_ERROR"
-        ""
+        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;WARNINGS_DONT_ERROR;NO_LINK_TIME_OPTIMIZATION"
+        "CXX_STANDARD"
         "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS"
     )
     qc_check_args()
@@ -95,6 +98,11 @@ function(qc_setup_target target)
         message(WARNING "`WARNINGS_DONT_ERROR` specified for interface library")
     endif()
 
+    # Verify `NO_LINK_TIME_OPTIMIZATION`
+    if(_NO_LINK_TIME_OPTIMIZATION AND is_interface)
+        message(WARNING "`NO_LINK_TIME_OPTIMIZATION` specified for interface library")
+    endif()
+
     # Find source files if not provided
     set(source_files ${_SOURCE_FILES})
     if(NOT DEFINED _SOURCE_FILES AND NOT is_interface)
@@ -158,6 +166,21 @@ function(qc_setup_target target)
         target_link_libraries(${target} INTERFACE ${_INTERFACE_LINKS})
     endif()
 
+    # Set C++ standard
+    if(_CXX_STANDARD)
+        set(cxx_standard ${_CXX_STANDARD})
+    else()
+        set(cxx_standard cxx_std_20)
+    endif()
+    if(is_interface)
+        set(cxx_standard_access INTERFACE)
+    elseif(is_library)
+        set(cxx_standard_access PUBLIC)
+    else()
+        set(cxx_standard_access PRIVATE)
+    endif()
+    target_compile_features(${target} ${cxx_standard_access} ${cxx_standard})
+
     # Set warnings and other compile options
     if(NOT is_interface)
         if(_WARNINGS_DONT_ERROR)
@@ -178,5 +201,15 @@ function(qc_setup_target target)
         elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp)
             target_precompile_headers(${target} PRIVATE pch.hpp)
         endif()
+    endif()
+
+    # Append `-d` to generated debug libraries so they don't collide with release libraries
+    if (is_library)
+        set_target_properties(${target} PROPERTIES DEBUG_POSTFIX "-d")
+    endif()
+
+    # Enable link-time optimization
+    if(NOT is_interface AND QC_RELEASE AND NOT _NO_LINK_TIME_OPTIMIZATION)
+        set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
 endfunction()

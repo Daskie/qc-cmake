@@ -9,6 +9,7 @@ include(utility.cmake)
 #
 # qc_bundle_static_libraries(
 #     <target>
+#     UNBUNDLED_LIBRARY <target>
 #     BUNDLE_LIBRARIES <target>...
 #     [PUBLIC_LINKS <target>...]
 #     [PRIVATE_LINKS <target>...]
@@ -70,7 +71,7 @@ function(qc_bundle_static_libraries target)
     # Determine filepath for generated bundled library file
     unset(library_file_postfix)
     if(QC_DEBUG)
-        set(library_file_postfix ${CMAKE_DEBUG_POSTFIX})
+        get_target_property(library_file_postfix ${_UNBUNDLED_LIBRARY} DEBUG_POSTFIX)
     endif()
     set(bundled_library_file ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${target}${library_file_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX})
 
@@ -109,6 +110,14 @@ function(qc_bundle_static_libraries target)
     if(DEFINED links_list)
         set_target_properties(${target} PROPERTIES INTERFACE_LINK_LIBRARIES "${links_list}")
     endif()
+
+    # Set C++ standard
+    get_target_property(cxx_standard ${_UNBUNDLED_LIBRARY} CXX_STANDARD)
+    set_target_properties(${target} PROPERTIES CXX_STANDARD ${cxx_standard})
+
+    # Set link-time optimization
+    get_target_property(lto ${_UNBUNDLED_LIBRARY} INTERPROCEDURAL_OPTIMIZATION)
+    set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION lto)
 
     # Make sure the unbundled library is built first
     add_dependencies(${target} ${_UNBUNDLED_LIBRARY})
