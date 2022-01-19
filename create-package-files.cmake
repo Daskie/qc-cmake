@@ -138,7 +138,12 @@ function(_qc_generate_package_targets_configuration_file targets out_file)
     foreach(target IN LISTS targets)
         get_target_property(target_type ${target} TYPE)
         if(target_type STREQUAL "STATIC_LIBRARY")
-            get_target_property(debug_postfix ${target} DEBUG_POSTFIX)
+            if(QC_DEBUG)
+                get_target_property(debug_postfix ${target} DEBUG_POSTFIX)
+            else()
+                unset(debug_postfix)
+            endif()
+
             set(library_file \${install_prefix}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${target}${debug_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX})
             string(APPEND file_content "
 # Import target `${target}`
