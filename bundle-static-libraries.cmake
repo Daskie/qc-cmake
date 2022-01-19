@@ -123,6 +123,9 @@ function(qc_bundle_static_libraries target)
     get_target_property(interprocedural_optimization ${_UNBUNDLED_LIBRARY} INTERPROCEDURAL_OPTIMIZATION)
     set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${interprocedural_optimization})
 
+    # Set special tag to help with installation later
+    set_target_properties(${target} PROPERTIES QC_IS_LOCAL_BUNDLED_LIBRARY TRUE)
+
     # Make sure the unbundled library is built first
     add_dependencies(${target} ${_UNBUNDLED_LIBRARY})
 endfunction()
