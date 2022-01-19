@@ -115,9 +115,13 @@ function(qc_bundle_static_libraries target)
     get_target_property(cxx_standard ${_UNBUNDLED_LIBRARY} CXX_STANDARD)
     set_target_properties(${target} PROPERTIES CXX_STANDARD ${cxx_standard})
 
+    # Set debug postfix
+    get_target_property(debug_postfix ${_UNBUNDLED_LIBRARY} DEBUG_POSTFIX)
+    set_target_properties(${target} PROPERTIES DEBUG_POSTFIX ${debug_postfix})
+
     # Set link-time optimization
-    get_target_property(lto ${_UNBUNDLED_LIBRARY} INTERPROCEDURAL_OPTIMIZATION)
-    set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION lto)
+    get_target_property(interprocedural_optimization ${_UNBUNDLED_LIBRARY} INTERPROCEDURAL_OPTIMIZATION)
+    set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${interprocedural_optimization})
 
     # Make sure the unbundled library is built first
     add_dependencies(${target} ${_UNBUNDLED_LIBRARY})
