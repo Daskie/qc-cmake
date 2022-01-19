@@ -125,11 +125,9 @@ function(_qc_generate_package_targets_configuration_file targets out_file)
     if(QC_DEBUG)
         set(configuration_string_upper "DEBUG")
         set(configuration_string_lower "debug")
-        set(library_file_postfix "${CMAKE_DEBUG_POSTFIX}")
     else()
         set(configuration_string_upper "RELEASE")
         set(configuration_string_lower "release")
-        unset(library_file_postfix)
     endif()
 
     set(file_content "\
@@ -140,7 +138,8 @@ function(_qc_generate_package_targets_configuration_file targets out_file)
     foreach(target IN LISTS targets)
         get_target_property(target_type ${target} TYPE)
         if(target_type STREQUAL "STATIC_LIBRARY")
-            set(library_file \${install_prefix}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${target}${library_file_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX})
+            get_target_property(debug_postfix ${target} DEBUG_POSTFIX)
+            set(library_file \${install_prefix}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${target}${debug_postfix}${CMAKE_STATIC_LIBRARY_SUFFIX})
             string(APPEND file_content "
 # Import target `${target}`
 set_property(TARGET ${package}::${target} APPEND PROPERTY IMPORTED_CONFIGURATIONS ${configuration_string_upper})
