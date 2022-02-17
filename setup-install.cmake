@@ -118,7 +118,7 @@ function(qc_setup_install)
     if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
         install(
             DIRECTORY include/ # Trailing slash means everything WITHIN the directory is copied rather than the directory itself being copied
-            DESTINATION include
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
     else()
         message(WARNING "No `include` directory found to install for package `${CMAKE_PROJECT_NAME}`")

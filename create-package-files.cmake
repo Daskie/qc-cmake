@@ -13,6 +13,7 @@ function(_qc_generate_package_config_file dependencies out_file)
 #
 
 ")
+    # Add `find_dependency` for each dependency
     list(LENGTH dependencies dependencies_count)
     if(dependencies_count GREATER 0)
         string(APPEND file_content "\
@@ -30,6 +31,7 @@ find_dependency(${dependency})")
 include(\"\${CMAKE_CURRENT_LIST_DIR}/${package}-targets.cmake\")
 ")
 
+    # Write out the generated package config file
     set(file "${CMAKE_CURRENT_BINARY_DIR}/${package}-config.cmake")
     file(WRITE ${file} "${file_content}")
     set(${out_file} ${file} PARENT_SCOPE)
@@ -80,7 +82,7 @@ endif()
 # Create imported target `${target}`
 add_library(${package}::${target} ${library_type} IMPORTED)
 set_target_properties(${package}::${target} PROPERTIES
-	INTERFACE_INCLUDE_DIRECTORIES \"\${install_prefix}/include\"")
+	INTERFACE_INCLUDE_DIRECTORIES \"\${install_prefix}/${CMAKE_INSTALL_INCLUDEDIR}\"")
         if(DEFINED links_list)
 	        string(APPEND file_content "
 	INTERFACE_LINK_LIBRARIES \"${links_list}\"")
