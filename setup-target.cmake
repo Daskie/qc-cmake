@@ -144,9 +144,21 @@ function(qc_setup_target target)
         )
     endif()
 
-    # Add additional `external` include directory
-    if(NOT is_interface AND IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external)
-        target_include_directories(${target} PRIVATE external)
+    # Add additional include directories
+    if(NOT is_interface)
+        # Include `source` or `src` directory
+        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/source)
+            target_include_directories(${target} PRIVATE source)
+        elseif(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
+            target_include_directories(${target} PRIVATE src)
+        endif()
+
+        # Include `external` or `extern` directory
+        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external)
+            target_include_directories(${target} PRIVATE external)
+        elseif(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern)
+            target_include_directories(${target} PRIVATE extern)
+        endif()
     endif()
 
     # Do links
