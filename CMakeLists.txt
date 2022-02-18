@@ -5,8 +5,9 @@
 # https://github.com/Daskie/qc-cmake
 #
 
-# TODO: Determine actual minimum version
 cmake_minimum_required(VERSION 3.20)
+
+# TODO: Add status and debug messages to all this
 
 include(utility.cmake)
 include(warnings.cmake)

@@ -224,4 +224,44 @@ function(qc_setup_target target)
     if(NOT is_interface AND QC_RELEASE AND NOT _NO_LINK_TIME_OPTIMIZATION)
         set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
+
+    # Define share directory property if the share directory exists
+    # TODO: Add to install procedure
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/share)
+        set_target_properties(${target} PROPERTIES QC_SHARE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/share)
+    endif()
+
+    # Remove build share directory if it exists
+    set(build_share_directory ${CMAKE_CURRENT_BINARY_DIR}/share)
+    if(EXISTS ${build_share_directory})
+        message(DEBUG "Removing build share directory `${build_share_directory}`")
+        file(REMOVE_RECURSE ${build_share_directory})
+    endif()
+
+    # Make symlinks to the share date of us and our dependencies
+    # TODO: Add to install procedure
+    foreach(share_data_source IN LISTS target _PUBLIC_LINKS _PRIVATE_LINKS)
+        get_target_property(share_directory ${share_data_source} QC_SHARE_DIRECTORY)
+        if(NOT share_directory STREQUAL share_directory-NOTFOUND)
+            message(STATUS "Creating symlinks for `${share_data_source}`'s share data")
+
+            # Ensure our build share directory exists
+            if(NOT EXISTS ${build_share_directory})
+                message(DEBUG "Creating build share directory `${build_share_directory}`")
+                file(MAKE_DIRECTORY ${build_share_directory})
+            endif()
+
+            # Link each thing in the share directory in our build share directory
+            file(GLOB data_paths ${share_directory}/*)
+            foreach(data_path IN LISTS data_paths)
+                cmake_path(GET data_path FILENAME data_filename)
+                set(link_path ${build_share_directory}/${data_filename})
+                if(EXISTS ${link_path})
+                    message(FATAL_ERROR "Share data `${data_filename}` already exists")
+                endif()
+                message(DEBUG "Linking `${link_path}` -> `${data_path}`")
+                file(CREATE_LINK ${data_path} ${link_path} SYMBOLIC)
+            endforeach()
+        endif()
+    endforeach()
 endfunction()
