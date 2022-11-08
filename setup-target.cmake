@@ -11,6 +11,7 @@ include(utility.cmake)
 #     [SOURCE_FILES <file>...]
 #     [PUBLIC_LINKS <target>...]
 #     [PRIVATE_LINKS <target>...]
+#     [BUNDLE_LIBS <target>...]
 #     [CXX_STANDARD <cxx_standard>]
 #     [COMPILE_OPTIONS <option>...]
 #     [WARNINGS_DONT_ERROR]
@@ -31,8 +32,8 @@ function(qc_setup_target target)
         ""
         "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;WARNINGS_DONT_ERROR;NO_LINK_TIME_OPTIMIZATION"
         "CXX_STANDARD"
-        "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;COMPILE_OPTIONS"
-    )
+        "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;BUNDLE_LIBS;COMPILE_OPTIONS")
+
     qc_check_args()
 
     # Set target and library type
@@ -62,7 +63,7 @@ function(qc_setup_target target)
 
     # Set helper flags
     set(is_interface FALSE)
-    if(DEFINED library_type)
+    if(library_type)
         set(is_executable FALSE)
         set(is_library TRUE)
         if(library_type STREQUAL "INTERFACE")
@@ -74,17 +75,37 @@ function(qc_setup_target target)
     endif()
 
     # Verify source files
-    if(DEFINED _SOURCE_FILES AND is_interface)
+    if(_SOURCE_FILES AND is_interface)
         message(FATAL_ERROR "Interface library must not have source files")
     endif()
 
     # Verify links
-    if(DEFINED _INTERFACE_LINKS AND NOT is_interface)
+    if(_INTERFACE_LINKS AND NOT is_interface)
         message(FATAL_ERROR "Only interface libraries may have interface links")
     endif()
     foreach(item IN LISTS _PUBLIC_LINKS _PRIVATE_LINKS _INTERFACE_LINKS)
         if(NOT TARGET ${item})
-            message(FATAL_ERROR "`${item}` is not a target")
+            message(FATAL_ERROR "Link `${item}` is not a target")
+        endif()
+    endforeach()
+
+    # Verify bundle libs
+    if(_BUNDLE_LIBS AND NOT target_type STREQUAL "STATIC_LIBRARY")
+        message(FATAL_ERROR "`BUNDLE_LIBS may only be specified for static libraries`")
+    endif()
+    foreach(bundle_target IN LISTS _BUNDLE_LIBS)
+        if(NOT TARGET ${bundle_target})
+            message(FATAL_ERROR "Bundle library `${bundle_target}` is not a target")
+        else()
+            get_target_property(target_type ${bundle_target} TYPE)
+            if(NOT target_type STREQUAL "STATIC_LIBRARY")
+                if(target_type STREQUAL "UNKNOWN_LIBRARY")
+                    # TODO: Figure out why Freetype is `UNKOWN_LIBRARY`
+                    message(WARNING "Bundle target `${bundle_target}` has type `UNKNOWN_LIBRARY`")
+                else()
+                    message(FATAL_ERROR "Bundle target `${bundle_target}` must have type `STATIC_LIBRARY` but has type `${target_type}`")
+                endif()
+            endif()
         endif()
     endforeach()
 
@@ -103,14 +124,32 @@ function(qc_setup_target target)
         message(WARNING "`NO_LINK_TIME_OPTIMIZATION` specified for interface library")
     endif()
 
+    # Check for common directory misnames
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
+        message(WARNING "Ignoring directory `src`; possible misname of `source`")
+    endif()
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sources)
+        message(WARNING "Ignoring directory `sources`; possible misname of `source`")
+    endif()
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/includes)
+        message(WARNING "Ignoring directory `includes`; possible misname of `include`")
+    endif()
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern)
+        message(WARNING "Ignoring directory `extern`; possible misname of `external`")
+    endif()
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/externals)
+        message(WARNING "Ignoring directory `externals`; possible misname of `external`")
+    endif()
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/externs)
+        message(WARNING "Ignoring directory `externs`; possible misname of `external`")
+    endif()
+
     # Find source files if not provided
     set(source_files ${_SOURCE_FILES})
     if(NOT DEFINED _SOURCE_FILES AND NOT is_interface)
         # Determine source directory
         if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/source)
             file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} source/*.cpp)
-        elseif(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
-            file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} src/*.cpp)
         else()
             file(GLOB source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
         endif()
@@ -128,53 +167,74 @@ function(qc_setup_target target)
         add_library(${target} ${library_type} ${source_files})
     endif()
 
-    # Set include directory
-    if(is_library)
-        if (is_interface)
-            set(public_or_interface "INTERFACE")
-        else()
-            set(public_or_interface "PUBLIC")
-        endif()
-
-        target_include_directories(
-            ${target}
-            ${public_or_interface}
-                # Not using generator expressions since we generate our own package install files
-                ${CMAKE_CURRENT_SOURCE_DIR}/include
-        )
+    # Check for loose header files in include directory
+    file(GLOB header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} include/*.hpp)
+    if(header_files)
+        qc_list_to_pretty_string("${header_files}" header_files_string)
+        message(WARNING "Loose header files in `include` directory will be ignored: ${header_files_string}")
     endif()
 
-    # Add additional include directories
+    # Add root header files
+    file(GLOB header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.hpp)
+    if(header_files)
+        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
+            message(FATAL_ERROR "Found loose header files in root directory AND an `include` directory; expected one or the other")
+        endif()
+        if(is_library)
+            if(is_interface)
+                set(scope INTERFACE)
+            else()
+                set(scope PUBLIC)
+            endif()
+        else()
+            set(scope PRIVATE)
+        endif()
+        target_sources(${target} ${scope} FILE_SET HEADERS FILES ${header_files})
+    endif()
+
+    # Add public header files
+    if(is_library)
+        # Add header files in `include` directory
+        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${target})
+            file(GLOB_RECURSE header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} include/${target}/*.hpp)
+            if(header_files)
+                if(is_interface)
+                    set(scope INTERFACE)
+                else()
+                    set(scope PUBLIC)
+                endif()
+                target_sources(${target} ${scope} FILE_SET HEADERS BASE_DIRS include FILES ${header_files})
+            endif()
+        endif()
+    endif()
+
+    # Add private include directories
     if(NOT is_interface)
-        # Include `source` or `src` directory
+        # Include `source` directory
         if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/source)
             target_include_directories(${target} PRIVATE source)
-        elseif(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
-            target_include_directories(${target} PRIVATE src)
         endif()
 
-        # Include `external` or `extern` directory
+        # Include `external` directory
         if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external)
             target_include_directories(${target} PRIVATE external)
-        elseif(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern)
-            target_include_directories(${target} PRIVATE extern)
         endif()
     endif()
 
     # Do links
-    if(DEFINED _PUBLIC_LINKS)
+    if(_PUBLIC_LINKS)
         target_link_libraries(${target} PUBLIC ${_PUBLIC_LINKS})
     endif()
     foreach(private_link IN LISTS _PRIVATE_LINKS)
         get_target_property(link_type ${private_link} TYPE)
-        if(link_type STREQUAL "INTERFACE_LIBRARY")
-            # Workaround to avoid private header-only libraries being added to the link interface
+        if(link_type STREQUAL "INTERFACE_LIBRARY" OR private_link IN_LIST _BUNDLE_LIBS)
+            # Workaround to avoid private header-only or bundled libraries being added to the link interface
             target_link_libraries(${target} PRIVATE $<BUILD_INTERFACE:${private_link}>)
         else()
             target_link_libraries(${target} PRIVATE ${private_link})
         endif()
     endforeach()
-    if(DEFINED _INTERFACE_LINKS)
+    if(_INTERFACE_LINKS)
         target_link_libraries(${target} INTERFACE ${_INTERFACE_LINKS})
     endif()
 
@@ -208,15 +268,13 @@ function(qc_setup_target target)
     if(NOT is_interface)
         if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/source/pch.hpp)
             target_precompile_headers(${target} PRIVATE source/pch.hpp)
-        elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp)
-            target_precompile_headers(${target} PRIVATE src/pch.hpp)
         elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp)
             target_precompile_headers(${target} PRIVATE pch.hpp)
         endif()
     endif()
 
     # Append `-d` to generated debug libraries so they don't collide with release libraries
-    if (is_library)
+    if(is_library)
         set_target_properties(${target} PROPERTIES DEBUG_POSTFIX "-d")
     endif()
 
@@ -238,11 +296,11 @@ function(qc_setup_target target)
         file(REMOVE_RECURSE ${build_share_directory})
     endif()
 
-    # Make symlinks to the share date of us and our dependencies
+    # Make symlinks to the share data of us and our dependencies
     # TODO: Add to install procedure
     foreach(share_data_source IN LISTS target _PUBLIC_LINKS _PRIVATE_LINKS)
         get_target_property(share_directory ${share_data_source} QC_SHARE_DIRECTORY)
-        if(NOT share_directory STREQUAL share_directory-NOTFOUND)
+        if(share_directory)
             message(STATUS "Creating symlinks for `${share_data_source}`'s share data")
 
             # Ensure our build share directory exists
@@ -264,4 +322,29 @@ function(qc_setup_target target)
             endforeach()
         endif()
     endforeach()
+
+    # Bundle libs
+    if(_BUNDLE_LIBS)
+        # Get list of library files to bundle
+        unset(bundle_libs)
+        foreach(bundle_target IN LISTS target _BUNDLE_LIBS)
+           list(APPEND bundle_libs $<TARGET_FILE:${bundle_target}>)
+        endforeach()
+
+        # Merge the lib files
+        if(QC_MSVC)
+            qc_list_to_pretty_string("${_BUNDLE_LIBS}" bundle_libs_string)
+            find_program(lib_tool lib)
+            add_custom_command(
+                TARGET ${target}
+                POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E echo "Bundling static libraries ${bundle_libs_string} into `${target}`..."
+                COMMAND ${lib_tool} /NOLOGO /OUT:$<TARGET_FILE:${target}> ${bundle_libs}
+                VERBATIM
+                COMMAND_EXPAND_LISTS)
+        else()
+            # TODO
+            message(FATAL_ERROR "Currently only MSVC is supported for bundling static libraries")
+        endif()
+    endif()
 endfunction()

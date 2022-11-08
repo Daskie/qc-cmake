@@ -23,8 +23,7 @@ set(QC_WARNINGS_MSVC
     /w14905 # Wide string literal cast to 'LPSTR'
     /w14906 # String literal cast to 'LPWSTR'
     /w14928 # Illegal copy-initialization; more than one user-defined conversion has been implicitly applied
-    /permissive- # Standards conformance mode for MSVC compiler.
-)
+    /permissive-) # Standards conformance mode for MSVC compiler.
 
 set(QC_WARNINGS_CLANG
     -Wall                # Typical baseline
@@ -40,8 +39,7 @@ set(QC_WARNINGS_CLANG
     -Wsign-conversion    # Warn on sign conversions
     -Wnull-dereference   # Warn if a null dereference is detected
     -Wdouble-promotion   # Warn if float is implicit promoted to double
-    -Wformat=2           # Warn on security issues around functions that format output (ie printf)
-)
+    -Wformat=2)          # Warn on security issues around functions that format output (ie printf)
 
 set(QC_WARNINGS_GCC
     ${QC_WARNINGS_CLANG}
@@ -49,8 +47,7 @@ set(QC_WARNINGS_GCC
     -Wduplicated-cond        # Warn if if / else chain has duplicated conditions
     -Wduplicated-branches    # Warn if if / else branches have duplicated code
     -Wlogical-op             # Warn about logical operations being used where bitwise were probably wanted
-    -Wuseless-cast           # Warn if you perform a cast to the same type
-)
+    -Wuseless-cast)          # Warn if you perform a cast to the same type
 
 # Warnings as errors
 set(QC_WARNINGS_ERROR_MSVC ${QC_WARNINGS_MSVC} /WX)
