@@ -3,27 +3,22 @@ include_guard()
 include(utility.cmake)
 
 set(QC_WARNINGS_MSVC
-    /W4     # Typical baseline
-    /w14062 # Ensure all enum switch cases are handled
-    /w14242 # 'identifier': conversion from 'type1' to 'type1', possible loss of data
-    /w14254 # 'operator': conversion from 'type1:field_bits' to 'type2:field_bits', possible loss of data
-    /w14263 # 'function': member function does not override any base class virtual member function
-    /w14265 # 'classname': class has virtual functions, but destructor is not virtual instances of this class may not be destructed correctly
-    /w14287 # 'operator': unsigned/negative constant mismatch
-    /we4289 # Nonstandard extension used: 'variable': loop control variable declared in the for-loop is used outside the for-loop scope
-    /w14296 # 'operator': expression is always 'boolean_value'
-    /w14311 # 'variable': pointer truncation from 'type1' to 'type2'
-    /w14545 # Expression before comma evaluates to a function which is missing an argument list
-    /w14546 # Function call before comma missing argument list
-    /w14547 # 'operator': operator before comma has no effect; expected operator with side-effect
-    /w14549 # 'operator': operator before comma has no effect; did you intend 'operator'?
-    /w14555 # Expression has no effect; expected expression with side- effect
-    /w14619 # Pragma warning: there is no warning number 'number'
-    /w14640 # Enable warning on thread un-safe static member initialization
-    /w14826 # Conversion from 'type1' to 'type_2' is sign-extended. This may cause unexpected runtime behavior.
-    /w14905 # Wide string literal cast to 'LPSTR'
-    /w14906 # String literal cast to 'LPWSTR'
-    /w14928 # Illegal copy-initialization; more than one user-defined conversion has been implicitly applied
+    /Wall   # Start with all warnings
+    /wd4061 # enumerator 'identifier' in a switch of enum 'enumeration' is not explicitly handled by a case label
+    /wd4514 # 'function': unreferenced inline function has been removed
+    /wd4623 # 'derived class': default constructor could not be generated because a base class default constructor is inaccessible
+    /wd4626 # 'derived class': assignment operator could not be generated because a base class assignment operator is inaccessible
+    /wd4625 # 'derived class': copy constructor could not be generated because a base class copy constructor is inaccessible
+    /wd4668 # 'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'
+    /wd4800 # Implicit conversion from 'type' to bool. Possible information loss
+    /wd4820 # 'bytes' bytes padding added after construct 'member_name'
+    /wd4868 # 'file(line_number)' compiler may not enforce left-to-right evaluation order in braced initialization list
+    /wd5024 # 'type': move constructor was implicitly defined as deleted
+    /wd5025 # 'type': move assignment operator was implicitly defined as deleted
+    /wd5026 # 'type': move constructor was implicitly defined as deleted
+    /wd5027 # 'type': move assignment operator was implicitly defined as deleted
+    /wd5045 # Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+    /wd5246 # 'member': the initialization of a subobject should be wrapped in braces
     /permissive-) # Standards conformance mode for MSVC compiler.
 
 set(QC_WARNINGS_CLANG
