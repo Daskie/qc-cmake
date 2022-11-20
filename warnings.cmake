@@ -10,6 +10,8 @@ set(QC_WARNINGS_MSVC
     /wd4626 # 'derived class': assignment operator could not be generated because a base class assignment operator is inaccessible
     /wd4625 # 'derived class': copy constructor could not be generated because a base class copy constructor is inaccessible
     /wd4668 # 'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'
+    /wd4710 # 'function' : function not inlined
+    /wd4711 # function 'function' selected for inline expansion
     /wd4800 # Implicit conversion from 'type' to bool. Possible information loss
     /wd4820 # 'bytes' bytes padding added after construct 'member_name'
     /wd4868 # 'file(line_number)' compiler may not enforce left-to-right evaluation order in braced initialization list
