@@ -12,6 +12,7 @@ set(QC_WARNINGS_MSVC
     /wd4668 # 'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'
     /wd4710 # 'function' : function not inlined
     /wd4711 # function 'function' selected for inline expansion
+    /wd4738 # storing 32-bit float result in memory, possible loss of performance
     /wd4800 # Implicit conversion from 'type' to bool. Possible information loss
     /wd4820 # 'bytes' bytes padding added after construct 'member_name'
     /wd4868 # 'file(line_number)' compiler may not enforce left-to-right evaluation order in braced initialization list
