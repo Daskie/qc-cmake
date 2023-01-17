@@ -22,6 +22,7 @@ set(QC_WARNINGS_MSVC
     /wd5027 # 'type': move assignment operator was implicitly defined as deleted
     /wd5045 # Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
     /wd5246 # 'member': the initialization of a subobject should be wrapped in braces
+    /wd5262 # implicit fall-through occurs here; are you missing a break statement? Use [[fallthrough]] when a break statement is intentionally omitted between cases
     /permissive-) # Standards conformance mode for MSVC compiler.
 
 set(QC_WARNINGS_CLANG
