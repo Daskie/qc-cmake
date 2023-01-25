@@ -146,17 +146,25 @@ function(qc_setup_target target)
 
     # Find source files if not provided
     set(source_files ${_SOURCE_FILES})
+    unset(source_dir)
     if(NOT DEFINED _SOURCE_FILES AND NOT is_interface)
         # Determine source directory
         if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/source)
-            file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} source/*.cpp)
+            set(source_dir ${CMAKE_CURRENT_SOURCE_DIR}/source)
         else()
-            file(GLOB source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
+            set(source_dir ${CMAKE_CURRENT_SOURCE_DIR})
+        endif()
+
+        # Find source files in source directory
+        if(source_dir EQUAL ${PROJECT_SOURCE_DIR})
+            file(GLOB source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${source_dir}/*.cpp)
+        else()
+            file(GLOB_RECURSE source_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${source_dir}/*.cpp)
         endif()
 
         list(LENGTH source_files source_file_count)
         if(source_file_count EQUAL 0)
-            message(FATAL_ERROR "No source files found under `${CMAKE_CURRENT_SOURCE_DIR}`")
+            message(FATAL_ERROR "No source files found under `${source_dir}`")
         endif()
     endif()
 
@@ -211,8 +219,8 @@ function(qc_setup_target target)
     # Add private include directories
     if(NOT is_interface)
         # Include `source` directory
-        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/source)
-            target_include_directories(${target} PRIVATE source)
+        if(source_dir)
+            target_include_directories(${target} PRIVATE ${source_dir})
         endif()
 
         # Include `external` directory
@@ -265,12 +273,8 @@ function(qc_setup_target target)
     endif()
 
     # Set precompiled header
-    if(NOT is_interface)
-        if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/source/pch.hpp)
-            target_precompile_headers(${target} PRIVATE source/pch.hpp)
-        elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp)
-            target_precompile_headers(${target} PRIVATE pch.hpp)
-        endif()
+    if(source_dir AND EXISTS ${source_dir}/pch.hpp)
+        target_precompile_headers(${target} PRIVATE ${source_dir}/pch.hpp)
     endif()
 
     # Append `-d` to generated debug libraries so they don't collide with release libraries
