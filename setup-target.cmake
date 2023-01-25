@@ -36,6 +36,8 @@ function(qc_setup_target target)
 
     qc_check_args()
 
+    set(package ${CMAKE_PROJECT_NAME})
+
     # Set target and library type
     unset(target_type)
     unset(library_type)
@@ -175,18 +177,19 @@ function(qc_setup_target target)
         add_library(${target} ${library_type} ${source_files})
     endif()
 
-    # Check for loose header files in include directory
-    file(GLOB header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} include/*.hpp)
-    if(header_files)
-        qc_list_to_pretty_string("${header_files}" header_files_string)
-        message(WARNING "Loose header files in `include` directory will be ignored: ${header_files_string}")
-    endif()
+    # Check for anything in the include directory that isn't a subdirectory named after the package
+    file(GLOB include_items RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/include include/*)
+    foreach(item IN LISTS include_items)
+        if(NOT item STREQUAL package)
+            message(WARNING "Unexpected include directory item will be ignored: ${item}")
+        endif()
+    endforeach()
 
     # Add root header files
     file(GLOB header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.hpp)
     if(header_files)
         if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
-            message(FATAL_ERROR "Found loose header files in root directory AND an `include` directory; expected one or the other")
+            message(FATAL_ERROR "Found loose header files AND an `include` directory; expected one or the other")
         endif()
         if(is_library)
             if(is_interface)
@@ -201,18 +204,15 @@ function(qc_setup_target target)
     endif()
 
     # Add public header files
-    if(is_library)
-        # Add header files in `include` directory
-        if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${target})
-            file(GLOB_RECURSE header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} include/${target}/*.hpp)
-            if(header_files)
-                if(is_interface)
-                    set(scope INTERFACE)
-                else()
-                    set(scope PUBLIC)
-                endif()
-                target_sources(${target} ${scope} FILE_SET HEADERS BASE_DIRS include FILES ${header_files})
+    if(is_library AND IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${package})
+        file(GLOB_RECURSE header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} include/${package}/*.hpp)
+        if(header_files)
+            if(is_interface)
+                set(scope INTERFACE)
+            else()
+                set(scope PUBLIC)
             endif()
+            target_sources(${target} ${scope} FILE_SET HEADERS BASE_DIRS include FILES ${header_files})
         endif()
     endif()
 
