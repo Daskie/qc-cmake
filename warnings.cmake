@@ -16,6 +16,7 @@ set(QC_WARNINGS_MSVC
     /wd4738 # storing 32-bit float result in memory, possible loss of performance
     /wd4800 # Implicit conversion from 'type' to bool. Possible information loss
     /wd4820 # 'bytes' bytes padding added after construct 'member_name'
+    /wd4866 # 'file(line_number)' compiler may not enforce left-to-right evaluation order for call to operator_name
     /wd4868 # 'file(line_number)' compiler may not enforce left-to-right evaluation order in braced initialization list
     /wd5024 # 'type': move constructor was implicitly defined as deleted
     /wd5025 # 'type': move assignment operator was implicitly defined as deleted
