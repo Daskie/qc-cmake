@@ -177,14 +177,6 @@ function(qc_setup_target target)
         add_library(${target} ${library_type} ${source_files})
     endif()
 
-    # Check for anything in the include directory that isn't a subdirectory named after the package
-    file(GLOB include_items RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/include include/*)
-    foreach(item IN LISTS include_items)
-        if(NOT item STREQUAL package)
-            message(WARNING "Unexpected include directory item will be ignored: ${item}")
-        endif()
-    endforeach()
-
     # Add root header files
     file(GLOB header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.hpp)
     if(header_files)
@@ -204,8 +196,8 @@ function(qc_setup_target target)
     endif()
 
     # Add public header files
-    if(is_library AND IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${package})
-        file(GLOB_RECURSE header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} include/${package}/*.hpp)
+    if(is_library AND IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
+        file(GLOB_RECURSE header_files LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} include/*.hpp)
         if(header_files)
             if(is_interface)
                 set(scope INTERFACE)
