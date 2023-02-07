@@ -14,8 +14,9 @@ include(utility.cmake)
 #     [BUNDLE_LIBS <target>...]
 #     [CXX_STANDARD <cxx_standard>]
 #     [COMPILE_OPTIONS <option>...]
-#     [WARNINGS_DONT_ERROR]
-#     [NO_LINK_TIME_OPTIMIZATION]
+#     [NO_WERROR]
+#     [NO_LTO]
+#     [NO_AVX]
 # )
 #
 # qc_setup_target(
@@ -30,7 +31,7 @@ function(qc_setup_target target)
         PARSE_ARGV
         1
         ""
-        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;WARNINGS_DONT_ERROR;NO_LINK_TIME_OPTIMIZATION"
+        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;NO_WERROR;NO_LTO;NO_AVX"
         "CXX_STANDARD"
         "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;BUNDLE_LIBS;COMPILE_OPTIONS")
 
@@ -116,14 +117,19 @@ function(qc_setup_target target)
         message(WARNING "`COMPILE_OPTIONS` specified for interface library")
     endif()
 
-    # Verify `WARNINGS_DONT_ERROR`
-    if(_WARNINGS_DONT_ERROR AND is_interface)
-        message(WARNING "`WARNINGS_DONT_ERROR` specified for interface library")
+    # Verify `NO_WERROR`
+    if(_NO_WERROR AND is_interface)
+        message(WARNING "`NO_WERROR` specified for interface library")
     endif()
 
-    # Verify `NO_LINK_TIME_OPTIMIZATION`
-    if(_NO_LINK_TIME_OPTIMIZATION AND is_interface)
-        message(WARNING "`NO_LINK_TIME_OPTIMIZATION` specified for interface library")
+    # Verify `NO_LTO`
+    if(_NO_LTO AND is_interface)
+        message(WARNING "`NO_LTO` specified for interface library")
+    endif()
+
+    # Verify `NO_AVX`
+    if(_NO_AVX AND is_interface)
+        message(WARNING "`NO_AVX` specified for interface library")
     endif()
 
     # Check for common directory misnames
@@ -253,15 +259,28 @@ function(qc_setup_target target)
     endif()
     target_compile_features(${target} ${cxx_standard_access} ${cxx_standard})
 
-    # Set warnings and other compile options
+    # Set compile options
     if(NOT is_interface)
-        if(_WARNINGS_DONT_ERROR)
+        # Set AVX
+        unset(avx_option)
+        if(NOT _NO_AVX)
+            if(QC_MSVC)
+                set(avx_option "/arch:AVX2")
+            elseif(CMAKE_GCC)
+                set(avx_option "-mavx2")
+            elseif(QC_CLANG)
+                set(avx_option "-mavx2")
+            endif()
+        endif()
+
+        # Set warnings
+        if(_NO_WERROR)
             set(warnings ${QC_WARNINGS})
         else()
             set(warnings ${QC_WARNINGS_ERROR})
         endif()
 
-        target_compile_options(${target} PRIVATE ${warnings} ${_COMPILE_OPTIONS})
+        target_compile_options(${target} PRIVATE ${avx_option} ${warnings} ${_COMPILE_OPTIONS})
     endif()
 
     # Set precompiled header
@@ -275,7 +294,7 @@ function(qc_setup_target target)
     endif()
 
     # Enable link-time optimization
-    if(NOT is_interface AND QC_RELEASE AND NOT _NO_LINK_TIME_OPTIMIZATION)
+    if(NOT is_interface AND QC_RELEASE AND NOT _NO_LTO)
         set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
 
