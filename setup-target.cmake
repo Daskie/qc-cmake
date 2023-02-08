@@ -144,6 +144,11 @@ function(qc_setup_target target)
         message(WARNING "`COMPILE_OPTIONS` specified for interface library")
     endif()
 
+    # Enable RTTI if exceptions are enabled
+    if(_ENABLE_EXCEPTIONS)
+        set(_ENABLE_RTTI TRUE)
+    endif()
+
     # Check for common directory misnames
     if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
         message(WARNING "Ignoring directory `src`; possible misname of `source`")
