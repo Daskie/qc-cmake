@@ -13,10 +13,12 @@ include(utility.cmake)
 #     [PRIVATE_LINKS <target>...]
 #     [BUNDLE_LIBS <target>...]
 #     [CXX_STANDARD <cxx_standard>]
+#     [ENABLE_EXCEPTIONS]
+#     [ENABLE_RTTI]
+#     [DISABLE_AVX2]
+#     [DISABLE_WERROR]
+#     [DISABLE_LTO]
 #     [COMPILE_OPTIONS <option>...]
-#     [NO_WERROR]
-#     [NO_LTO]
-#     [NO_AVX]
 # )
 #
 # qc_setup_target(
@@ -31,7 +33,7 @@ function(qc_setup_target target)
         PARSE_ARGV
         1
         ""
-        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;NO_WERROR;NO_LTO;NO_AVX"
+        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;ENABLE_EXCEPTIONS;ENABLE_RTTI;DISABLE_AVX2;DISABLE_WERROR;DISABLE_LTO"
         "CXX_STANDARD"
         "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;BUNDLE_LIBS;COMPILE_OPTIONS")
 
@@ -112,24 +114,34 @@ function(qc_setup_target target)
         endif()
     endforeach()
 
+    # Verify `ENABLE_EXCEPTIONS`
+    if(_ENABLE_EXCEPTIONS AND is_interface)
+        message(WARNING "`ENABLE_EXCEPTIONS` specified for interface library")
+    endif()
+
+    # Verify `ENABLE_RTTI`
+    if(_ENABLE_RTTI AND is_interface)
+        message(WARNING "`ENABLE_RTTI` specified for interface library")
+    endif()
+
+    # Verify `DISABLE_WERROR`
+    if(_DISABLE_WERROR AND is_interface)
+        message(WARNING "`DISABLE_WERROR` specified for interface library")
+    endif()
+
+    # Verify `DISABLE_AVX2`
+    if(_DISABLE_AVX2 AND is_interface)
+        message(WARNING "`DISABLE_AVX2` specified for interface library")
+    endif()
+
+    # Verify `DISABLE_LTO`
+    if(_DISABLE_LTO AND is_interface)
+        message(WARNING "`DISABLE_LTO` specified for interface library")
+    endif()
+
     # Verify `COMPILE_OPTIONS`
     if(_COMPILE_OPTIONS AND is_interface)
         message(WARNING "`COMPILE_OPTIONS` specified for interface library")
-    endif()
-
-    # Verify `NO_WERROR`
-    if(_NO_WERROR AND is_interface)
-        message(WARNING "`NO_WERROR` specified for interface library")
-    endif()
-
-    # Verify `NO_LTO`
-    if(_NO_LTO AND is_interface)
-        message(WARNING "`NO_LTO` specified for interface library")
-    endif()
-
-    # Verify `NO_AVX`
-    if(_NO_AVX AND is_interface)
-        message(WARNING "`NO_AVX` specified for interface library")
     endif()
 
     # Check for common directory misnames
@@ -261,26 +273,50 @@ function(qc_setup_target target)
 
     # Set compile options
     if(NOT is_interface)
-        # Set AVX
-        unset(avx_option)
-        if(NOT _NO_AVX)
+        # Set AVX2
+        if(NOT _DISABLE_AVX2)
             if(QC_MSVC)
-                set(avx_option "/arch:AVX2")
-            elseif(CMAKE_GCC)
-                set(avx_option "-mavx2")
-            elseif(QC_CLANG)
-                set(avx_option "-mavx2")
+                target_compile_options(${target} PRIVATE /arch:AVX2)
+            else()
+                target_compile_options(${target} PRIVATE -mavx2)
+            endif()
+        endif()
+
+        # Set exceptions
+        if(_ENABLE_EXCEPTIONS)
+            if(QC_MSVC)
+                target_compile_options(${target} PRIVATE /EHsc)
+            endif()
+        else()
+            if(QC_MSVC)
+                # `/EHsc` is already removed from `CMAKE_CXX_FLAGS`
+                target_compile_options(${target} PRIVATE /D_HAS_EXCEPTIONS=0)
+            else()
+                target_compile_options(${target} PRIVATE -fno-exceptions -fno-unwind-tables)
+            endif()
+        endif()
+
+        # Set RTTI
+        if(NOT _ENABLE_RTTI)
+            if(QC_MSVC)
+                target_compile_options(${target} PRIVATE /GR-)
+            else()
+                target_compile_options(${target} PRIVATE -fno-rtti)
             endif()
         endif()
 
         # Set warnings
-        if(_NO_WERROR)
-            set(warnings ${QC_WARNINGS})
-        else()
-            set(warnings ${QC_WARNINGS_ERROR})
+        target_compile_options(${target} PRIVATE ${QC_WARNINGS})
+        if(NOT _DISABLE_WERROR)
+            if(QC_MSVC)
+                target_compile_options(${target} PRIVATE /WX)
+            else()
+                target_compile_options(${target} PRIVATE -Werror)
+            endif()
         endif()
 
-        target_compile_options(${target} PRIVATE ${avx_option} ${warnings} ${_COMPILE_OPTIONS})
+        # Set other user-specified options
+        target_compile_options(${target} PRIVATE ${_COMPILE_OPTIONS})
     endif()
 
     # Set precompiled header
@@ -294,7 +330,7 @@ function(qc_setup_target target)
     endif()
 
     # Enable link-time optimization
-    if(NOT is_interface AND QC_RELEASE AND NOT _NO_LTO)
+    if(NOT is_interface AND QC_RELEASE AND NOT _DISABLE_LTO)
         set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
 

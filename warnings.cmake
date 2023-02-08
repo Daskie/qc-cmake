@@ -7,6 +7,7 @@ set(QC_WARNINGS_MSVC
     /wd4061 # enumerator 'identifier' in a switch of enum 'enumeration' is not explicitly handled by a case label
     /wd4324 # 'struct_name' : structure was padded due to __declspec(align())
     /wd4514 # 'function': unreferenced inline function has been removed
+    /wd4577 # 'noexcept' used with no exception handling mode specified; termination on exception is not guaranteed. Specify /EHsc
     /wd4623 # 'derived class': default constructor could not be generated because a base class default constructor is inaccessible
     /wd4626 # 'derived class': assignment operator could not be generated because a base class assignment operator is inaccessible
     /wd4625 # 'derived class': copy constructor could not be generated because a base class copy constructor is inaccessible
@@ -52,20 +53,11 @@ set(QC_WARNINGS_GCC
     -Wlogical-op             # Warn about logical operations being used where bitwise were probably wanted
     -Wuseless-cast)          # Warn if you perform a cast to the same type
 
-# Warnings as errors
-set(QC_WARNINGS_ERROR_MSVC ${QC_WARNINGS_MSVC} /WX)
-set(QC_WARNINGS_ERROR_CLANG ${QC_WARNINGS_CLANG} -Werror)
-set(QC_WARNINGS_ERROR_GCC ${QC_WARNINGS_GCC} -Werror)
-
 if(QC_MSVC)
     set(QC_WARNINGS ${QC_WARNINGS_MSVC})
-    set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_MSVC})
 elseif(QC_CLANG)
     set(QC_WARNINGS ${QC_WARNINGS_CLANG})
-    set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_CLANG})
 elseif(CMAKE_GCC)
     set(QC_WARNINGS ${QC_WARNINGS_GCC})
-    set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR_GCC})
 endif()
 set(QC_WARNINGS ${QC_WARNINGS} PARENT_SCOPE)
-set(QC_WARNINGS_ERROR ${QC_WARNINGS_ERROR} PARENT_SCOPE)

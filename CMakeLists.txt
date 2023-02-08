@@ -13,3 +13,9 @@ include(utility.cmake)
 include(warnings.cmake)
 include(setup-target.cmake)
 include(setup-install.cmake)
+
+# Remove `/EHsc` from default flags so we can explicitly enable or disable exceptions later
+if(QC_MSVC)
+    string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} PARENT_SCOPE)
+endif()
