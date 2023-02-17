@@ -5,6 +5,7 @@ include(utility.cmake)
 set(QC_WARNINGS_MSVC
     /Wall   # Start with all warnings
     /wd4061 # enumerator 'identifier' in a switch of enum 'enumeration' is not explicitly handled by a case label
+    /wd4201 # nonstandard extension used : nameless struct/union
     /wd4324 # 'struct_name' : structure was padded due to __declspec(align())
     /wd4514 # 'function': unreferenced inline function has been removed
     /wd4577 # 'noexcept' used with no exception handling mode specified; termination on exception is not guaranteed. Specify /EHsc
