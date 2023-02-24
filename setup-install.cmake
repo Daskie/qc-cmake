@@ -98,4 +98,21 @@ endforeach()
         endif()
     endforeach()
 
+    # Add custom uninstall target only if the install was within a self-contained, package-specific directory
+    cmake_path(GET CMAKE_INSTALL_PREFIX FILENAME install_prefix_filename)
+    if(install_prefix_filename STREQUAL package)
+        add_custom_target(
+            uninstall-${package}
+            COMMAND
+                # Be **VERY** careful with this rm -r
+                ${CMAKE_COMMAND} -E rm -r ${CMAKE_INSTALL_PREFIX}
+            COMMENT
+                "Uninstalling ${package} by removing ${CMAKE_INSTALL_PREFIX}"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    else()
+        message(WARNING "Not creating an uninstall target for package ${package}")
+    endif()
+
 endfunction()
