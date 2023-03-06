@@ -1,8 +1,6 @@
 #
 # Common CMake variables and functions
-#
-# Austin Quick : 2020 - 2021
-# https://github.com/Daskie/qc-cmake
+# https://github.com/daskie/qc-cmake
 #
 
 cmake_minimum_required(VERSION 3.23)
@@ -13,6 +11,10 @@ include(utility.cmake)
 include(warnings.cmake)
 include(setup-target.cmake)
 include(setup-install.cmake)
+
+# Default C++ standard version
+# May be overridden at package level
+SET(QC_CXX_STANDARD 23 PARENT_SCOPE)
 
 # Remove `/EHsc` from default flags so we can explicitly enable or disable exceptions later
 if(QC_MSVC)
