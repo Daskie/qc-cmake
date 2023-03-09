@@ -290,6 +290,36 @@ function(qc_setup_target target)
     endif()
     target_compile_features(${target} ${cxx_standard_access} ${cxx_standard})
 
+    # Set compile definitions
+    if (NOT is_interface)
+        # Set build type
+        if(QC_DEBUG)
+            target_compile_definitions(${target} PRIVATE QC_DEBUG)
+        endif()
+        if(QC_RELEASE)
+            target_compile_definitions(${target} PRIVATE QC_RELEASE)
+        endif()
+
+        # Set compiler
+        if (QC_MSVC)
+            target_compile_definitions(${target} PRIVATE QC_MSVC)
+        endif()
+        if (QC_GCC)
+            target_compile_definitions(${target} PRIVATE QC_GCC)
+        endif()
+        if (QC_CLANG)
+            target_compile_definitions(${target} PRIVATE QC_CLANG)
+        endif()
+
+        # Set platform
+        if (QC_WINDOWS)
+            target_compile_definitions(${target} PRIVATE QC_WINDOWS)
+        endif()
+        if (QC_LINUX)
+            target_compile_definitions(${target} PRIVATE QC_LINUX)
+        endif()
+    endif()
+
     # Set compile options
     if(NOT is_interface)
         # Set AVX2

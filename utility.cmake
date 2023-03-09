@@ -1,35 +1,4 @@
 include_guard()
-
-include(GNUInstallDirs)
-
-# Build type constants
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(QC_DEBUG TRUE)
-    set(QC_RELEASE FALSE)
-else()
-    set(QC_DEBUG FALSE)
-    set(QC_RELEASE TRUE)
-endif()
-set(QC_DEBUG ${QC_DEBUG} PARENT_SCOPE)
-set(QC_RELEASE ${QC_RELEASE} PARENT_SCOPE)
-
-# Compiler constants
-unset(QC_MSVC)
-unset(QC_CLANG)
-unset(QC_GCC)
-if(MSVC)
-    set(QC_MSVC TRUE)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
-    set(QC_CLANG TRUE)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(QC_GCC TRUE)
-else()
-    message(FATAL_ERROR "Compiler not recognized")
-endif()
-set(QC_MSVC ${QC_MSVC} PARENT_SCOPE)
-set(QC_CLANG ${QC_CLANG} PARENT_SCOPE)
-set(QC_GCC ${QC_GCC} PARENT_SCOPE)
-
 #
 # Check `cmake_parse_arguments` results
 #
@@ -99,17 +68,4 @@ function(qc_parse_generator_expression expression out_tag out_value)
             set(${out_value} ${CMAKE_MATCH_3} PARENT_SCOPE)
         endif()
     endif()
-endfunction()
-
-#
-# Helper function to generate a list suitable for `INTERFACE_LINK_LIBRARIES` from public and private link targets
-#
-function(_qc_make_interface_link_libraries_list public_links private_links out_links_list)
-    # Add `$<LINK_ONLY:...>` generator expression to private links
-    unset(decorated_private_links)
-    foreach(link IN LISTS private_links)
-        list(APPEND decorated_private_links "\$<LINK_ONLY:${link}>")
-    endforeach()
-
-    set(${out_links_list} ${public_links} ${decorated_private_links} PARENT_SCOPE)
 endfunction()
