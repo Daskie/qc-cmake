@@ -363,7 +363,7 @@ function(qc_setup_target target)
             if(QC_MSVC)
                 target_compile_options(${target} PRIVATE /WX)
             else()
-                target_compile_options(${target} PRIVATE -Werror)
+                target_compile_options(${target} PRIVATE -Werror -Wfatal-errors)
             endif()
         endif()
 
