@@ -318,6 +318,9 @@ function(qc_setup_target target)
         if (QC_LINUX)
             target_compile_definitions(${target} PRIVATE QC_LINUX)
         endif()
+        if (QC_APPLE)
+            target_compile_definitions(${target} PRIVATE QC_APPLE)
+        endif()
     endif()
 
     # Set compile options
