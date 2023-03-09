@@ -33,18 +33,20 @@ set(QC_WARNINGS_MSVC
 set(QC_WARNINGS_CLANG
     -Wall                # Typical baseline
     -Wextra              # More standard warnings
-    -Wshadow             # Warn the user if a variable declaration shadows one from a parent context
-    -Wnon-virtual-dtor   # Warn the user if a class with virtual functions has a non-virtual destructor. This helps catch hard to track down memory errors
-    -Wold-style-cast     # Warn for c-style casts
     -Wcast-align         # Warn for potential performance problem casts
-    -Wunused             # Warn on anything being unused
+    -Wconversion         # Warn on type conversions that may lose data
+    -Wformat=2           # Warn on security issues around functions that format output (ie printf)
+    -Winit-self          # Warn about uninitialized variables that are initialized with themselves
+    -Winvalid-pch        # Warn if a precompiled header is found in the search path but cannot be used
+    -Wnon-virtual-dtor   # Warn the user if a class with virtual functions has a non-virtual destructor. This helps catch hard to track down memory errors
+    -Wnull-dereference   # Warn if a null dereference is detected
+    -Wold-style-cast     # Warn for c-style casts
     -Woverloaded-virtual # Warn if you overload (not override) a virtual function
     -Wpedantic           # Warn if non-standard C++ is used
-    -Wconversion         # Warn on type conversions that may lose data
+    -Wredundant-decls    # Warn if anything is declared more than once in the same scope
+    -Wshadow             # Warn the user if a variable declaration shadows one from a parent context
     -Wsign-conversion    # Warn on sign conversions
-    -Wnull-dereference   # Warn if a null dereference is detected
-    -Wdouble-promotion   # Warn if float is implicit promoted to double
-    -Wformat=2)          # Warn on security issues around functions that format output (ie printf)
+    -Wunused)            # Warn on anything being unused
 
 set(QC_WARNINGS_GCC
     ${QC_WARNINGS_CLANG}
