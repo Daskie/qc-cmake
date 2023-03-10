@@ -64,10 +64,16 @@ SET(QC_CXX_STANDARD 23 PARENT_SCOPE)
 # Modify default compiler flags
 if(QC_MSVC)
     # Remove `/EHsc` from default flags so we can explicitly enable or disable exceptions later
+    if(NOT CMAKE_CXX_FLAGS MATCHES "/EHsc")
+        message(WARNING "Expected `CMAKE_CXX_FLAGS` to contain `/EHsc`")
+    endif()
     string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} PARENT_SCOPE)
 else()
     # Use `-O2` instead of `-O3` for usually the same performance but better stability
+    if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "-O3")
+        message(WARNING "Expected `CMAKE_CXX_FLAGS_RELEASE` to contain `-O3`")
+    endif()
     string(REPLACE "-O3" "-O2" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
     set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE} PARENT_SCOPE)
 endif()
