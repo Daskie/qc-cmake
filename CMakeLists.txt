@@ -7,6 +7,9 @@ cmake_minimum_required(VERSION 3.23)
 
 # TODO: Add status and debug messages to all this
 
+# Make standard install paths available
+include(GNUInstallDirs)
+
 # Build type constants
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(QC_DEBUG TRUE)
