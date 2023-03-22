@@ -78,6 +78,9 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE} PARENT_SCOPE)
 endif()
 
+# Ensure new CMP0077 policy to allow submodule options to be configured correctly
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW PARENT_SCOPE)
+
 # Include everything else
 include(utility.cmake)
 include(warnings.cmake)
