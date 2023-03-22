@@ -15,6 +15,7 @@ include(utility.cmake)
 #     [CXX_STANDARD <cxx_standard>]
 #     [ENABLE_EXCEPTIONS]
 #     [ENABLE_RTTI]
+#     [DISABLE_AVX]
 #     [DISABLE_AVX2]
 #     [DISABLE_WERROR]
 #     [DISABLE_LTO]
@@ -33,7 +34,7 @@ function(qc_setup_target target)
         PARSE_ARGV
         1
         ""
-        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;ENABLE_EXCEPTIONS;ENABLE_RTTI;DISABLE_AVX2;DISABLE_WERROR;DISABLE_LTO"
+        "EXECUTABLE;STATIC_LIBRARY;SHARED_LIBRARY;INTERFACE_LIBRARY;ENABLE_EXCEPTIONS;ENABLE_RTTI;DISABLE_AVX;DISABLE_AVX2;DISABLE_WERROR;DISABLE_LTO"
         "CXX_STANDARD"
         "SOURCE_FILES;PUBLIC_LINKS;PRIVATE_LINKS;INTERFACE_LINKS;BUNDLE_LIBS;COMPILE_OPTIONS")
 
@@ -127,6 +128,11 @@ function(qc_setup_target target)
     # Verify `DISABLE_WERROR`
     if(_DISABLE_WERROR AND is_interface)
         message(WARNING "`DISABLE_WERROR` specified for interface library")
+    endif()
+
+    # Verify `DISABLE_AVX`
+    if(_DISABLE_AVX AND is_interface)
+        message(WARNING "`DISABLE_AVX` specified for interface library")
     endif()
 
     # Verify `DISABLE_AVX2`
@@ -305,12 +311,20 @@ function(qc_setup_target target)
 
     # Set compile options
     if(NOT is_interface)
-        # Set AVX2
-        if(NOT _DISABLE_AVX2)
-            if(QC_MSVC)
-                target_compile_options(${target} PRIVATE /arch:AVX2)
+        # Set AVX/AVX2
+        if(NOT _DISABLE_AVX)
+            if(NOT _DISABLE_AVX2)
+                if(QC_MSVC)
+                    target_compile_options(${target} PRIVATE /arch:AVX2)
+                else()
+                    target_compile_options(${target} PRIVATE -mavx2)
+                endif()
             else()
-                target_compile_options(${target} PRIVATE -mavx2)
+                if(QC_MSVC)
+                    target_compile_options(${target} PRIVATE /arch:AVX)
+                else()
+                    target_compile_options(${target} PRIVATE -mavx)
+                endif()
             endif()
         endif()
 
