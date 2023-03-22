@@ -370,6 +370,11 @@ function(qc_setup_target target)
         set_target_properties(${target} PROPERTIES DEBUG_POSTFIX "-d")
     endif()
 
+    # Remove `lib` prefix UNIX likes to add for some reason
+    if(is_library)
+        set_target_properties(${target} PROPERTIES PREFIX "")
+    endif()
+
     # Enable link-time optimization
     if(NOT is_interface AND QC_RELEASE AND NOT _DISABLE_LTO)
         set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
