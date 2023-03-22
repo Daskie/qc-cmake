@@ -105,12 +105,7 @@ function(qc_setup_target target)
         else()
             get_target_property(target_type ${bundle_target} TYPE)
             if(NOT target_type STREQUAL "STATIC_LIBRARY")
-                if(target_type STREQUAL "UNKNOWN_LIBRARY")
-                    # TODO: Figure out why Freetype is `UNKOWN_LIBRARY`
-                    message(WARNING "Bundle target `${bundle_target}` has type `UNKNOWN_LIBRARY`")
-                else()
-                    message(FATAL_ERROR "Bundle target `${bundle_target}` must have type `STATIC_LIBRARY` but has type `${target_type}`")
-                endif()
+                message(FATAL_ERROR "Bundle target `${bundle_target}` must have type `STATIC_LIBRARY` but has type `${target_type}`")
             endif()
         endif()
     endforeach()
@@ -422,26 +417,47 @@ function(qc_setup_target target)
 
     # Bundle libs
     if(_BUNDLE_LIBS)
-        # Get list of library files to bundle
-        unset(bundle_libs)
-        foreach(bundle_target IN LISTS target _BUNDLE_LIBS)
-           list(APPEND bundle_libs $<TARGET_FILE:${bundle_target}>)
-        endforeach()
-
-        # Merge the lib files
         if(QC_MSVC)
-            qc_list_to_pretty_string("${_BUNDLE_LIBS}" bundle_libs_string)
-            find_program(lib_tool lib)
-            add_custom_command(
-                TARGET ${target}
-                POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E echo "Bundling static libraries ${bundle_libs_string} into `${target}`..."
-                COMMAND ${lib_tool} /NOLOGO /OUT:$<TARGET_FILE:${target}> ${bundle_libs}
-                VERBATIM
-                COMMAND_EXPAND_LISTS)
+            # Get list of lib files to bundle
+            unset(bundle_libs)
+            foreach(bundle_target IN LISTS target _BUNDLE_LIBS)
+               list(APPEND bundle_libs $<TARGET_FILE:${bundle_target}>)
+            endforeach()
+
+            # Use `lib` command to merge libs
+            set(bundle_command lib /NOLOGO /OUT:$<TARGET_FILE:${target}> ${bundle_libs})
         else()
-            # TODO
-            message(FATAL_ERROR "Currently only MSVC is supported for bundling static libraries")
+            # Create AR MRI script
+            set(mri "open $<TARGET_FILE:${target}>\n")
+            foreach(lib IN LISTS _BUNDLE_LIBS)
+                string(APPEND mri "addlib $<TARGET_FILE:${lib}>\n")
+            endforeach()
+            string(APPEND mri "save\n")
+            string(APPEND mri "end")
+
+            # Create bash script that uses `ar` to merge libs
+            set(script_file ${CMAKE_CURRENT_BINARY_DIR}/bundle-${target}.sh)
+            set(script "#!/bin/bash\n\n")
+            string(APPEND script "echo \"${mri}\" | ar -M\n")
+            file(GENERATE
+                OUTPUT ${script_file}
+                CONTENT "${script}"
+                FILE_PERMISSIONS
+                    OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                    GROUP_READ GROUP_EXECUTE
+                    WORLD_READ WORLD_EXECUTE)
+
+            set(bundle_command "${script_file}")
         endif()
+
+        # Create custom command that will merge lib files each time the target is built
+        qc_list_to_pretty_string("${_BUNDLE_LIBS}" bundle_libs_string)
+        add_custom_command(
+            TARGET ${target}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E echo "Bundling static libraries ${bundle_libs_string} into `${target}`..."
+            COMMAND ${bundle_command}
+            VERBATIM
+            COMMAND_EXPAND_LISTS)
     endif()
 endfunction()
