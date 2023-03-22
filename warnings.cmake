@@ -46,7 +46,8 @@ set(QC_WARNINGS_CLANG
     -Wredundant-decls    # Warn if anything is declared more than once in the same scope
     -Wshadow             # Warn the user if a variable declaration shadows one from a parent context
     -Wsign-conversion    # Warn on sign conversions
-    -Wunused)            # Warn on anything being unused
+    -Wunused             # Warn on anything being unused
+    -Wno-multichar)      # Disable multichar warning
 
 set(QC_WARNINGS_GCC
     ${QC_WARNINGS_CLANG}
@@ -60,7 +61,7 @@ if(QC_MSVC)
     set(QC_WARNINGS ${QC_WARNINGS_MSVC})
 elseif(QC_CLANG)
     set(QC_WARNINGS ${QC_WARNINGS_CLANG})
-elseif(CMAKE_GCC)
+elseif(QC_GCC)
     set(QC_WARNINGS ${QC_WARNINGS_GCC})
 endif()
 set(QC_WARNINGS ${QC_WARNINGS} PARENT_SCOPE)
