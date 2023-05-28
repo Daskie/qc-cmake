@@ -47,6 +47,7 @@ set(QC_WARNINGS_CLANG
     -Wshadow                # Warn the user if a variable declaration shadows one from a parent context
     -Wsign-conversion       # Warn on sign conversions
     -Wunused                # Warn on anything being unused
+    -Wno-changes-meaning    # Disalbe warning of a name within a class having the same meaning in the complete scope
     -Wno-dangling-reference # Disable dangling reference warning (lots of false positives)
     -Wno-multichar)         # Disable multichar warning
 
