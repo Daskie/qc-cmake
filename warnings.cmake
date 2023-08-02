@@ -7,6 +7,7 @@ set(QC_WARNINGS_MSVC
     /wd4061 # enumerator 'identifier' in a switch of enum 'enumeration' is not explicitly handled by a case label
     /wd4201 # nonstandard extension used : nameless struct/union
     /wd4324 # 'struct_name' : structure was padded due to __declspec(align())
+    /wd4459 # declaration of 'identifier' hides global declaration
     /wd4514 # 'function': unreferenced inline function has been removed
     /wd4577 # 'noexcept' used with no exception handling mode specified; termination on exception is not guaranteed. Specify /EHsc
     /wd4623 # 'derived class': default constructor could not be generated because a base class default constructor is inaccessible
@@ -44,7 +45,7 @@ set(QC_WARNINGS_CLANG
     -Woverloaded-virtual    # Warn if you overload (not override) a virtual function
     -Wpedantic              # Warn if non-standard C++ is used
     -Wredundant-decls       # Warn if anything is declared more than once in the same scope
-    -Wshadow                # Warn the user if a variable declaration shadows one from a parent context
+    -Wshadow=local          # Warn when a local variable shadows another local variable or parameter
     -Wsign-conversion       # Warn on sign conversions
     -Wunused                # Warn on anything being unused
     -Wno-changes-meaning    # Disalbe warning of a name within a class having the same meaning in the complete scope
