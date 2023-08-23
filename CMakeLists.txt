@@ -3,7 +3,7 @@
 # https://github.com/daskie/qc-cmake
 #
 
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.24)
 
 # TODO: Add status and debug messages to all this
 
@@ -82,7 +82,7 @@ endif()
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW PARENT_SCOPE)
 
 # Include everything else
+include(setup-install.cmake)
+include(setup-target.cmake)
 include(utility.cmake)
 include(warnings.cmake)
-include(setup-target.cmake)
-include(setup-install.cmake)
