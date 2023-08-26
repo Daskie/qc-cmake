@@ -13,6 +13,7 @@ set(QC_WARNINGS_MSVC
     /wd4623 # 'derived class': default constructor could not be generated because a base class default constructor is inaccessible
     /wd4626 # 'derived class': assignment operator could not be generated because a base class assignment operator is inaccessible
     /wd4625 # 'derived class': copy constructor could not be generated because a base class copy constructor is inaccessible
+    /wd4686 # 'user-defined type' : possible change in behavior, change in UDT return calling convention
     /wd4668 # 'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'
     /wd4710 # 'function' : function not inlined
     /wd4711 # function 'function' selected for inline expansion
