@@ -40,7 +40,7 @@ function(qc_setup_target target)
 
     qc_check_args()
 
-    set(package ${CMAKE_PROJECT_NAME})
+    set(package ${PROJECT_NAME})
 
     # Set target and library type
     unset(target_type)
@@ -199,6 +199,9 @@ function(qc_setup_target target)
         add_executable(${target} ${source_files})
     else()
         add_library(${target} ${library_type} ${source_files})
+
+        # Create alias with namespace for build consistency
+        add_library(${package}::${target} ALIAS ${target})
     endif()
 
     # Add root header files

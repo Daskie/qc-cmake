@@ -24,7 +24,7 @@ function(qc_setup_install)
 
     qc_check_args()
 
-    set(package ${CMAKE_PROJECT_NAME})
+    set(package ${PROJECT_NAME})
 
     # Validate targets
     if(NOT DEFINED _TARGETS)
